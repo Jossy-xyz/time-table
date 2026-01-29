@@ -38,7 +38,7 @@ const TimetablePage: React.FC = () => {
   const [gridInitialized, setGridInitialized] = useState(false);
   const [periodSlots, setPeriodSlots] = useState<PeriodSlot[]>([]);
 
-  const dayNames = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const dayNames = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
   const generateCsv = async () => {
     try {

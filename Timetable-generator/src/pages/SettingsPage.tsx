@@ -180,43 +180,28 @@ const SettingsPage: React.FC = () => {
 
     for (const ep of endpoints) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
 
       try {
         const url =
-          ep.id === "venue"
-            ? ep.url
-            : `${ep.url}?username=${encodeURIComponent(username)}`;
+          ep.id === "venue" ? ep.url : `${ep.url}?username=${username}`;
         const res = await fetch(url, { signal: controller.signal });
         clearTimeout(timeoutId);
 
-        if (!res.ok) {
-          results[ep.id] = {
-            status: `Error ${res.status}`,
-            ok: false,
-            name: ep.name,
-            count: 0,
-            err: `Server returned code ${res.status}`,
-          };
-          continue;
-        }
-
         const data = await res.json();
         results[ep.id] = {
-          status: "Connected",
-          ok: true,
+          status: res.ok ? "Connected" : "Offline",
+          ok: res.ok,
           name: ep.name,
           count: Array.isArray(data) ? data.length : 0,
         };
-      } catch (e: any) {
+      } catch (e) {
         console.error(`Health check failed for ${ep.id}`, e);
-        const isTimeout = e.name === "AbortError";
         results[ep.id] = {
-          status: isTimeout ? "Timeout" : "Offline",
+          status: "Offline",
           ok: false,
           name: ep.name,
           count: 0,
-          err: e.message,
         };
       }
     }
@@ -700,37 +685,22 @@ const SettingsPage: React.FC = () => {
                               >
                                 <div className="flex justify-between items-start mb-2">
                                   <p className="text-[9px] font-black uppercase text-brick/60">
-                                    {data.name || id}
+                                    {id}
                                   </p>
-                                  {data.ok ? (
-                                    data.count === 0 && (
-                                      <span className="text-[8px] font-bold px-1.5 py-0.5 bg-status-warning/20 text-status-warning rounded uppercase">
-                                        Empty
-                                      </span>
-                                    )
-                                  ) : (
-                                    <span className="text-[8px] font-bold px-1.5 py-0.5 bg-status-error/10 text-status-error rounded uppercase">
-                                      {data.status}
+                                  {data.count === 0 && data.ok && (
+                                    <span className="text-[8px] font-bold px-1.5 py-0.5 bg-status-warning/20 text-status-warning rounded uppercase">
+                                      System Empty
                                     </span>
                                   )}
                                 </div>
                                 <p
-                                  className={`text-2xl font-black leading-none ${data.ok && data.count > 0 ? "text-institutional-primary" : "text-institutional-muted"}`}
+                                  className={`text-2xl font-black leading-none ${data.count > 0 ? "text-institutional-primary" : "text-institutional-muted"}`}
                                 >
                                   {data.count ?? 0}
                                 </p>
-                                <div className="flex flex-col mt-1">
-                                  <p className="text-[8px] font-bold text-institutional-muted uppercase">
-                                    {data.ok
-                                      ? "Records Verified"
-                                      : "Sync Failure"}
-                                  </p>
-                                  {data.err && (
-                                    <p className="text-[7px] font-medium text-status-error/60 leading-none truncate max-w-full">
-                                      {data.err}
-                                    </p>
-                                  )}
-                                </div>
+                                <p className="text-[8px] font-bold text-institutional-muted uppercase mt-1">
+                                  {data.ok ? "Verified Records" : "Sync Failed"}
+                                </p>
                               </div>
                             ),
                           )}

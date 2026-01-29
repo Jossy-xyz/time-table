@@ -205,11 +205,11 @@ function BrandingPanel({ colleges }: { colleges: College[] }) {
       <div className="absolute inset-0 bg-gradient-to-br from-brick-deep/40 via-transparent to-transparent z-[1]" />
 
       {/* Watermark Logo - Optimal Visibility */}
-      <div className="absolute inset-0 z-0 opacity-[0.15] pointer-events-none flex items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none flex items-center justify-center overflow-hidden">
         <img
           src={bellsLogo}
           alt=""
-          className="w-[140%] max-w-none grayscale opacity-60 mix-blend-overlay rotate-[-10deg]"
+          className="w-[140%] max-w-none grayscale opacity-50 mix-blend-overlay rotate-[-10deg]"
         />
       </div>
 

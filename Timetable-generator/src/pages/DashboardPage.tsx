@@ -44,15 +44,11 @@ const DashboardPage: React.FC = () => {
     const endpoints = [
       {
         id: "student",
-        url: `http://localhost:8080/student/get?username=${encodeURIComponent(username)}`,
+        url: `http://localhost:8080/student/get?username=${username}`,
       },
       {
         id: "course",
-        url: `http://localhost:8080/course/get?username=${encodeURIComponent(username)}`,
-      },
-      {
-        id: "staff",
-        url: `http://localhost:8080/staff/get?username=${encodeURIComponent(username)}`,
+        url: `http://localhost:8080/course/get?username=${username}`,
       },
       { id: "venue", url: `http://localhost:8080/venue/get` },
     ];
@@ -61,30 +57,21 @@ const DashboardPage: React.FC = () => {
       const results = await Promise.all(
         endpoints.map(async (ep) => {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // Increased timeout
+          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout for aviation-grade responsiveness
 
           try {
             const res = await fetch(ep.url, { signal: controller.signal });
             clearTimeout(timeoutId);
 
-            if (!res.ok) {
-              console.error(
-                `Dashboard pulse [${ep.id}] failed: Status ${res.status}`,
-              );
-              return { id: ep.id, count: 0, ok: false };
-            }
-
+            if (!res.ok) return { id: ep.id, count: 0, ok: false };
             const data = await res.json();
             return {
               id: ep.id,
               count: Array.isArray(data) ? data.length : 0,
               ok: true,
             };
-          } catch (e: any) {
-            console.warn(
-              `Dashboard pulse [${ep.id}] offline:`,
-              e.name === "AbortError" ? "Timeout" : e.message,
-            );
+          } catch (e) {
+            console.warn(`Fetch failure for ${ep.id}:`, e);
             return { id: ep.id, count: 0, ok: false };
           }
         }),

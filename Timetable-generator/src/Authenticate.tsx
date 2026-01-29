@@ -24,11 +24,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   });
 
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token") && user
-      ? localStorage.getItem("token")
-      : null,
-  );
+  const [token, setToken] = useState<string | null>(() => {
+    const savedToken = localStorage.getItem("token");
+    return savedToken && localStorage.getItem("user_data") ? savedToken : null;
+  });
 
   const login = async (userData: User) => {
     try {
