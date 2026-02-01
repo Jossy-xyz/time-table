@@ -139,6 +139,8 @@ export interface User {
 
 export interface Constraint {
   id: number;
+  name: string;
+  date?: string;
   periodIncE: string;
   periodExcE: string;
   venueIncE: string;
@@ -147,6 +149,7 @@ export interface Constraint {
   periodExcV: string;
   examWAftE: string;
   examExcE: string;
+  examWCoinE: string;
   frontLE: string;
 }
 
@@ -158,6 +161,10 @@ export interface GeneralSettings {
   session: string;
   startDate: string;
   endDate: string;
+  examCategory: string;
+  campusType: string;
+  examLevel: string;
+  examWeeks: number;
 }
 
 export interface OptimizationSettings {
@@ -193,4 +200,39 @@ export interface TimetableSlot {
   dayOfWeek: number;
   periodSlot: number;
   staffId: number;
+}
+
+export interface PeriodMapping {
+  periodIndex: number; // 0-based
+  displayIndex: number; // 1-based
+  date: string; // ISO Date string
+  dayOfWeek: string;
+  weekNumber: number;
+  periodOfDay: number;
+}
+
+export interface PeriodMappingResponse {
+  totalPeriods: number;
+  daysPerWeek: number;
+  periodsPerDay: number;
+  startDate: string;
+  endDate: string;
+  periods: PeriodMapping[];
+}
+
+export interface PeriodExclusionDto {
+  id: number;
+  generalSettingsId: number;
+  name: string;
+  description?: string;
+  excludedPeriods: number[];
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface PeriodExclusionRequest {
+  name: string;
+  excludedPeriods: number[];
+  setAsActive: boolean;
 }

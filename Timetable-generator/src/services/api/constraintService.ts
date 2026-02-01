@@ -12,16 +12,19 @@ export const constraintService = {
   },
 
   saveAll: async (data: Partial<Constraint>): Promise<void> => {
-    // Backend endpoint: /constraint/save-all
-    // Logic from SettingsPage: prepares constraintData object
-    // Assuming the backend expects the exact object structure sent in SettingsPage
-    await apiClient.post("/constraint/save-all", data);
+    // Backend endpoint: /constraint/add (which handles snapshotted/named saves)
+    await apiClient.post("/constraint/add", data);
+  },
+
+  getHistory: async (): Promise<Constraint[]> => {
+    const response = await apiClient.get("/constraint/history");
+    return response;
   },
 
   getLatest: async (): Promise<Constraint | null> => {
     try {
       const response = await apiClient.get("/constraint/get/latest");
-      return response.data;
+      return response;
     } catch (error) {
       console.error("Failed to fetch latest constraints", error);
       return null;

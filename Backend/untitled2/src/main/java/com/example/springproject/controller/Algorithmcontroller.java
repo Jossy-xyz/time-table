@@ -10,7 +10,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/algorithm")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:3000", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
 public class AlgorithmController {
 
     @Autowired
@@ -21,6 +21,9 @@ public class AlgorithmController {
 
     @PostMapping("/trigger")
     public ResponseEntity<?> triggerAlgorithm(
+            @RequestParam(value = "generalSettingsId", required = false) Long generalSettingsId,
+            @RequestParam(value = "constraintId", required = false) Integer constraintId,
+            @RequestParam(value = "exclusionSnapshotId", required = false) Long exclusionSnapshotId,
             @RequestParam(value = "username", required = false) String usernameParam,
             @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         
@@ -29,7 +32,7 @@ public class AlgorithmController {
         // Enforce Admin access for algorithm triggering
         // policyService.enforceScope(actorUsername, "ADMIN_ONLY", "EXECUTE"); 
         
-        schedulerService.triggerAlgorithm();
+        schedulerService.triggerAlgorithm(generalSettingsId, constraintId, exclusionSnapshotId);
         
         return ResponseEntity.ok(Map.of(
             "message", "Algorithm started successfully", 

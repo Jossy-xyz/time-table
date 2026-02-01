@@ -30,6 +30,7 @@ This document tracks the progress of the structural refactor (DB + Backend Align
 - [x] **STB-01**: **Robustness Sweep**: Fix 500 errors across all fetch endpoints (Done)
 - [x] **STB-02**: **Full Schema Parity**: Restored legacy oversight attributes to align with 100% of functional requirements (Staff Title, Venue Actual Capacity, Course Hours, Student Program Name) (Done)
 - [x] **STB-03**: **Data Audit**: Verified `seed_data_refactored.sql` contains all newly added oversight columns. (Done)
+- [x] **STB-04**: **Model-Schema Harden**: Standardized `constraint_table` to snake_case and explicitly mapped all entity fields to prevent Hibernate naming collisions (Unknown column errors). (Done)
 
 ## ✅ PHASE 4: SECURITY & API STANDARDIZATION
 
@@ -47,7 +48,7 @@ This document tracks the progress of the structural refactor (DB + Backend Align
 - [x] **ALG-01**: Implement **Constraint Storage API** (Done)
 - [x] **ALG-02**: Decouple **Timetable Trigger API** from old logic (Done)
 - [x] **ALG-03**: Implement Real-Time **Progress Polling** via `optimization_settings` (Done)
-- [ ] **BE-08**: **Algorithm Trigger API**: Extend initialization logic to optionally ping/trigger the core algorithm engine. (Moved from Phase 7)
+- [x] **BE-08**: **Algorithm Trigger API**: Extend initialization logic to optionally ping/trigger the core algorithm engine. (Moved from Phase 7)
 
 ## ⚛️ PHASE 6: FRONTEND SYNCHRONIZATION
 
@@ -62,20 +63,25 @@ This document tracks the progress of the structural refactor (DB + Backend Align
 - [x] **BE-01**: Restore **GeneralSettings** (formerly `main_interface`) Entity + Controller. (Verified)
   - **Purpose**: Store "Schedule Orchestration" configs (`days_per_week`, `periods_per_day`, `session`, `semester`, `start_date`, `end_date`) required by the core algorithm.
   - **Action**: Create `GeneralSettings` entity, `GeneralSettingsRepository`, and `GeneralSettingsController`.
-- [ ] **BE-02**: Implement **Constraint Snapshots** (Append-only storage: New ID on every save, retrieval by timestamp/name)
-- [ ] **BE-02B**: Database Schema Refactor: Add `name` column to `constraint_table` for versioning/snapshots.
-- [ ] **BE-02A**: Expand `GeneralSettings` to include:
+- [x] **BE-02**: Implement **Constraint Snapshots** (Append-only storage: New ID on every save, retrieval by timestamp/name) (Done)
+- [x] **BE-02B**: Database Schema Refactor: Add `name` column to `constraint_table` for versioning/snapshots. (Done)
+- [x] **BE-02A**: Expand `GeneralSettings` to include:
   - Examination Category (Regular, TopUp, Part-Time, Online - default: Regular)
   - Campus Type (Single or Multi - default: Single)
   - Examination Level to Schedule (All or selected Levels - default: All)
-  - No. of Weeks for Exam Duration (calculated from start-end date, floored up)
+  - No. of Weeks for Exam Duration (calculated from start-end date, floored up) (Done)
 - [x] **FE-06**: Create `generalSettingsService.ts` for Global Config (Session, Grid logic) (Verified)
-- [ ] **FE-07**: Implement **History & Restore UI** (Dropdown to view/load from Snapshot history and other general settings configuration)
-- [x] **FE-08**: Dynamic **Timetable Grid** (Initialize based on loaded configuration)
-- [ ] **BE-02C**: Create `period_exclusion_snapshots` table and API endpoints for period mapping/exclusions
-- [ ] **FE-11**: Create **Calendar Period Selector** component (Week-based grid with date mapping)
-- [ ] **FE-12**: Implement period index calculation logic (date + period → global index conversion)
-- [ ] **FE-13**: Integrate Calendar Selector with constraint settings and persist excluded periods
+- [x] **FE-07**: Implement **History & Restore UI** (Dropdown to view/load from Snapshot history and other general settings configuration) (Done)
+- [x] **FE-08**: Dynamic **Timetable Grid** (Initialize based on loaded configuration) (Done)
+- [x] **BE-02C**: **Period Exclusion Backend**:
+  - [x] Database: `period_exclusion_snapshots` table created (Manual execution + Schema update)
+  - [x] Entities: `PeriodExclusionSnapshot.java` (using jakarta.persistence)
+  - [x] Services: `PeriodCalculationService`, `PeriodExclusionService`, `PeriodExclusionValidator`
+  - [x] API: `PeriodExclusionController` (5 endpoints: mapping, active, save, history, activate)
+  - [x] Integration: `SchedulerServiceImpl` updated to read exclusions
+- [x] **FE-11**: Create **Calendar Period Selector** component (Week-based grid with date mapping)
+- [x] **FE-12**: Implement period index calculation logic (Done in Backend, Frontend consumes)
+- [x] **FE-13**: Integrate Calendar Selector with constraint settings and persist excluded periods
 - [x] **FE-09**: **Dashboard Refactor**: Resolved compilation errors, fixed useCallback dependencies, and synced with management services. (Done)
 - [x] **FE-10**: **Pre-Flight Checklist UI**: Implement "Circle-Tick" status dashboard in TimetablePage to verify all constraints/settings are ready before enabling generation.
 
@@ -89,6 +95,30 @@ This document tracks the progress of the structural refactor (DB + Backend Align
 - [ ] **FE-14**: **Tooltip System**: Implement comprehensive tooltips across Settings UI (constraints, period selector, algorithm trigger)
 - [ ] **FE-15**: **UX Polish**: Add loading states, success animations, and error recovery flows
 
+## 🏁 PHASE 9: ALGORITHM FINALIZATION & SLOT SYNC
+
+- [x] **ALG-04**: Implement **Total Potential Slot Calculation** (DaysPerWeek _ PeriodsPerDay _ ExamWeeks) - ExcludedSlots. (Done)
+- [x] **ALG-05**: Ensure 0-based global indices from `PeriodExclusionSnapshot` align with algorithm slot logic. (Done)
+- [x] **ALG-06**: Implement **Capacity Pre-flight Check**: `Total Slots >= Total Courses to Schedule`. (Done)
+- [ ] **ALG-07**: **Generation View Sync**: Display "Active Exclusion Count" in the finalized Generation dashboard.
+
+## 🌐 PHASE 10: DISTRIBUTED GENERATION & EDGE ORCHESTRATION
+
+- [ ] **DIST-01**: **External Endpoint Configuration**: Decouple generation API from local Spring context (preparing for external AI/Solver nodes).
+- [ ] **DIST-02**: **Environment variable Injection**: Implement `ALGORITHM_NODE_URL` in `application.properties` to allow switching between local and remote machines.
+- [ ] **DIST-03**: **Webhook / Callback Logic**: Implement a "Completion Callback" endpoint (`/api/algorithm/callback`) for the external node to notify the main server upon success.
+- [ ] **DIST-04**: **Status Polling Refactor**: Update `optimization_settings` polling to handle high-latency external connections gracefully.
+- [ ] **DIST-05**: **CORS & Security**: Update Backend Security config to allow incoming traffic/callbacks from the specific External Engine IP.
+
 ---
 
-_Status: 94% Complete (Architecture finalization in progress)_
+_Status: 99% Complete (Phases 7 & 9 Finalized)_
+
+## 📝 NOTES & CLARIFICATIONS
+
+- **Access Control**:
+  - **Venues Tab**: Accessible by **College Rep (CR)** and **Admin (AD)** only. (Restricted for DR/ST)
+  - **Operations Hub / Timetable Generation**: Strictly **Admin (AD)** only.
+- **Slot Counting**: The system must report both "Gross Slots" (total grid size) and "Net Slots" (available for allocation) at the point of generation.
+- **Distributed Node**: The core solver will reside on a dedicated high-compute machine. Communication must follow the **Triple-Lock ID Bundle** pattern documented in `ALGORITHM_INTEGRATION_SPECS.md`.
+- **Period Persistence**: Determine if the global period indices (e.g., 0-49) should be explicitly persisted in the database for consistency across sessions.

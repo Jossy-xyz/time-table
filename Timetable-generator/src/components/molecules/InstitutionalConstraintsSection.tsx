@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FiPlus, FiLock } from "react-icons/fi";
+import { FiPlus, FiLock, FiX, FiRotateCcw } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import InputChip, { CourseOption } from "./InputChip";
 import PeriodSlotSelector from "./PeriodSlotSelector";
 import VenueSlotSelector from "./VenueSlotSelector";
 import ConfirmModal from "./ConfirmModal";
+import { Constraint } from "../../types/institutional";
 
 interface ConstraintEntry {
   courseCode: string;
   periods?: number[];
   venues?: string[];
 }
+
+// Redundant local interface removed in favor of Constraint from types/institutional
+export type ConstraintSnapshot = Constraint;
 
 interface ConstraintGroup {
   key: string;
@@ -26,6 +30,7 @@ interface InstitutionalConstraintsSectionProps {
   availableVenues?: Array<{ code: string; name: string }>;
   maxPeriods?: number;
   initialConstraints?: Record<string, string>;
+  onLoadHistory?: () => Promise<ConstraintSnapshot[]>;
 }
 
 const CONSTRAINT_GROUPS: ConstraintGroup[] = [
@@ -78,6 +83,12 @@ const CONSTRAINT_GROUPS: ConstraintGroup[] = [
     type: "period",
   },
   {
+    key: "examWCoinE",
+    label: "Coinciding Exams",
+    description: "Exams that must occur at the same time",
+    type: "period",
+  },
+  {
     key: "frontLE",
     label: "Front Loaded Exams",
     description: "Important exams scheduled earlier",
@@ -102,6 +113,7 @@ const InstitutionalConstraintsSection: React.FC<
   availableVenues = [],
   maxPeriods = 10,
   initialConstraints = {},
+  onLoadHistory,
 }) => {
   // State management
   const [constraints, setConstraints] = useState<
@@ -124,6 +136,10 @@ const InstitutionalConstraintsSection: React.FC<
     details?: string;
   }>({ isOpen: false, action: "add" });
   const [isSaving, setIsSaving] = useState(false);
+  const [snapshotName, setSnapshotName] = useState("");
+  const [history, setHistory] = useState<ConstraintSnapshot[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // State to track which group is currently adding a course
   const [addingToGroup, setAddingToGroup] = useState<string | null>(null);
@@ -351,8 +367,74 @@ const InstitutionalConstraintsSection: React.FC<
     setConfirmModal({
       isOpen: true,
       action: "saveAll",
-      details: `Save all constraint changes? This will update the institutional settings.`,
+      details: `Save snapshot "${snapshotName || "Untitled Snapshot"}" with all constraint changes?`,
     });
+  };
+
+  const handleFetchHistory = async () => {
+    if (!onLoadHistory) return;
+    setIsLoadingHistory(true);
+    try {
+      const data = await onLoadHistory();
+      setHistory(data);
+      setShowHistory(true);
+    } catch (error) {
+      toast.error("Failed to load history");
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const loadFromSnapshot = (s: ConstraintSnapshot) => {
+    // We can reuse the initialization logic
+    const initialValues: Record<string, string> = {
+      periodIncE: s.periodIncE,
+      periodExcE: s.periodExcE,
+      venueIncE: s.venueIncE,
+      venueExcE: s.venueExcE,
+      periodIncV: s.periodIncV,
+      periodExcV: s.periodExcV,
+      examWAftE: s.examWAftE,
+      examExcE: s.examExcE,
+      examWCoinE: s.examWCoinE,
+      frontLE: s.frontLE,
+    };
+
+    // Set internal state by parsing (matching the useEffect logic)
+    const parsed: Record<string, ConstraintEntry[]> = {};
+    CONSTRAINT_GROUPS.forEach((group) => {
+      parsed[group.key] = [];
+    });
+
+    Object.entries(initialValues).forEach(([key, value]) => {
+      if (value && parsed[key]) {
+        const entries = value.split(";").map((entry) => {
+          entry = entry.trim();
+          const match = entry.match(/^(\w+)\((.*?)\)$/);
+          if (match) {
+            const courseCode = match[1];
+            const items = match[2]
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean);
+            const group = CONSTRAINT_GROUPS.find((g) => g.key === key);
+            const type = group?.type || "period";
+            return {
+              courseCode,
+              [type === "period" ? "periods" : "venues"]: items.map((item) =>
+                type === "period" ? parseInt(item, 10) : item,
+              ),
+            };
+          }
+          return null;
+        });
+        parsed[key] = entries.filter(Boolean) as ConstraintEntry[];
+      }
+    });
+    setConstraints(parsed);
+    setSnapshotName(s.name);
+    setShowHistory(false);
+    toast.info(`Loaded snapshot: ${s.name}`);
   };
 
   const confirmSaveAll = useCallback(async () => {
@@ -364,15 +446,16 @@ const InstitutionalConstraintsSection: React.FC<
     setIsSaving(true);
     try {
       const dbConstraints = getConstraintsForDB();
+      // Add the name to the payload
+      dbConstraints.name =
+        snapshotName || `Snapshot ${new Date().toLocaleString()}`;
       await onSaveAll(dbConstraints);
-      // toast.success("All constraints saved successfully"); // Parent handles toast
       setConfirmModal({ isOpen: false, action: "add" });
     } catch (error) {
-      // toast.error("Failed to save constraints"); // Parent handles toast
     } finally {
       setIsSaving(false);
     }
-  }, [onSaveAll, getConstraintsForDB]);
+  }, [onSaveAll, getConstraintsForDB, snapshotName]);
 
   const handleConfirmModalAction = () => {
     switch (confirmModal.action) {
@@ -396,6 +479,94 @@ const InstitutionalConstraintsSection: React.FC<
         <h2 className="text-xs font-black uppercase tracking-widest text-brick">
           Institutional Constraints
         </h2>
+        <div className="flex-1" />
+        <button
+          onClick={handleFetchHistory}
+          className="text-[10px] font-black uppercase tracking-widest text-institutional-muted border-b border-dashed border-institutional-muted hover:text-brick hover:border-brick transition-all"
+        >
+          View History
+        </button>
+      </div>
+
+      {showHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-page rounded-lg shadow-xl w-full max-w-lg p-6 space-y-4 border border-brick/10 overflow-hidden"
+          >
+            <div className="flex justify-between items-center border-b border-brick/5 pb-3">
+              <div className="flex items-center gap-3">
+                <FiRotateCcw className="text-brick" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-institutional-muted">
+                  Snapshot Archive
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="text-institutional-muted hover:text-brick transition-colors"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+            {isLoadingHistory ? (
+              <div className="py-20 text-center">
+                <p className="text-xs font-bold text-brick italic animate-pulse">
+                  Consulting historical ledgers...
+                </p>
+              </div>
+            ) : history.length === 0 ? (
+              <div className="py-20 text-center">
+                <p className="text-sm text-institutional-muted italic">
+                  No historical snapshots recorded.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2">
+                {history.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex justify-between items-center p-4 bg-surface border border-brick/5 rounded group hover:border-brick/20 transition-all"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-institutional-primary">
+                        {s.name}
+                      </p>
+                      <p className="text-[8px] text-institutional-muted uppercase font-black">
+                        {new Date(s.date!).toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => loadFromSnapshot(s)}
+                      className="px-4 py-2 bg-brick/5 text-brick text-[9px] font-black uppercase tracking-widest rounded hover:bg-brick hover:text-white transition-all"
+                    >
+                      Load
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="pt-3 border-t border-brick/5 text-center">
+              <p className="text-[8px] text-institutional-muted font-bold uppercase tracking-tighter italic">
+                Bells University Institutional Registry
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Snapshot Name Input */}
+      <div className="bg-surface p-4 rounded-institutional border border-brick/10 mb-6">
+        <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+          Snapshot Identifier
+        </label>
+        <input
+          type="text"
+          placeholder="Enter a descriptive name for this constraint set (e.g., Early Exam Week v1)"
+          className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+          value={snapshotName}
+          onChange={(e) => setSnapshotName(e.target.value)}
+        />
       </div>
 
       {/* Constraint Groups Grid */}

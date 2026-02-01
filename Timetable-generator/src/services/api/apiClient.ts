@@ -7,7 +7,10 @@ const BASE_URL = "http://localhost:8080";
  * Automatically handles headers and actor scoping for the backend.
  */
 export const apiClient = {
-  fetch: async (endpoint: string, options: RequestInit = {}) => {
+  fetch: async <T = any>(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<T> => {
     const { user } = useAuthStore.getState();
 
     const headers = new Headers(options.headers);
@@ -33,29 +36,37 @@ export const apiClient = {
     // Handle empty responses (like 204 No Content or success messages)
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
-      return response.json();
+      return response.json() as Promise<T>;
     }
 
-    return response.text();
+    return response.text() as unknown as T;
   },
 
-  get: (endpoint: string, options: RequestInit = {}) =>
-    apiClient.fetch(endpoint, { ...options, method: "GET" }),
+  get: <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> =>
+    apiClient.fetch<T>(endpoint, { ...options, method: "GET" }),
 
-  post: (endpoint: string, body: any, options: RequestInit = {}) =>
-    apiClient.fetch(endpoint, {
+  post: <T = any>(
+    endpoint: string,
+    body?: any,
+    options: RequestInit = {},
+  ): Promise<T> =>
+    apiClient.fetch<T>(endpoint, {
       ...options,
       method: "POST",
-      body: JSON.stringify(body),
+      body: body ? JSON.stringify(body) : undefined,
     }),
 
-  put: (endpoint: string, body: any, options: RequestInit = {}) =>
-    apiClient.fetch(endpoint, {
+  put: <T = any>(
+    endpoint: string,
+    body?: any,
+    options: RequestInit = {},
+  ): Promise<T> =>
+    apiClient.fetch<T>(endpoint, {
       ...options,
       method: "PUT",
-      body: JSON.stringify(body),
+      body: body ? JSON.stringify(body) : undefined,
     }),
 
-  delete: (endpoint: string, options: RequestInit = {}) =>
-    apiClient.fetch(endpoint, { ...options, method: "DELETE" }),
+  delete: <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> =>
+    apiClient.fetch<T>(endpoint, { ...options, method: "DELETE" }),
 };

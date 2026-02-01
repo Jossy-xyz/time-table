@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/constraint")
-@CrossOrigin("http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:3000", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
 public class Constraintcontroller {
     @Autowired
     private Constraintservice constraintservice;
@@ -26,6 +26,13 @@ public class Constraintcontroller {
                      @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
         policyService.enforceScope(actorUsername, null, null);
+        
+        // APPEND-ONLY LOGIC: Ensure we create a new record for every save
+        constrainttable.setId(null); 
+        if (constrainttable.getName() == null || constrainttable.getName().isEmpty()) {
+            constrainttable.setName("Snapshot " + new java.util.Date());
+        }
+        
         constraintservice.saveConstrainttable(constrainttable);
         return "Constraints saved successfully";
     }
@@ -40,10 +47,23 @@ public class Constraintcontroller {
         return convertToDto(all.get(all.size() - 1));
     }
 
+    @GetMapping("/history")
+    public List<ConstraintDto> getHistory(@RequestParam(value = "username", required = false) String usernameParam,
+                                         @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
+        String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
+        policyService.enforceScope(actorUsername, null, null);
+        
+        return constraintservice.getAllConstraints().stream()
+                .map(this::convertToDto)
+                .sorted((a, b) -> b.getDate().compareTo(a.getDate())) // Newest first
+                .collect(Collectors.toList());
+    }
+
     private ConstraintDto convertToDto(Constrainttable constraint) {
         ConstraintDto dto = new ConstraintDto();
         dto.setId(constraint.getId());
-        dto.setDate(constraint.getDate());
+        dto.setName(constraint.getName());
+        dto.setDate(constraint.getRecordDate());
         dto.setPeriodIncE(constraint.getPeriodIncE());
         dto.setPeriodExcE(constraint.getPeriodExcE());
         dto.setVenueIncE(constraint.getVenueIncE());
@@ -57,3 +77,4 @@ public class Constraintcontroller {
         return dto;
     }
 }
+

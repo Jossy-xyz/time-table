@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/settings/general")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:3000", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
 public class GeneralSettingsController {
 
     @Autowired
@@ -15,14 +15,21 @@ public class GeneralSettingsController {
 
     @GetMapping
     public GeneralSettings getSettings() {
-        GeneralSettings settings = repository.findTopByOrderByIdDesc();
-        return settings != null ? settings : new GeneralSettings();
+        return repository.findTopByOrderByIdDesc();
+    }
+
+    @GetMapping("/history")
+    public java.util.List<GeneralSettings> getHistory() {
+        return repository.findAll().stream()
+                .sorted((a, b) -> b.getId().compareTo(a.getId())) // Newest ID first
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @PostMapping
     public GeneralSettings updateSettings(@RequestBody GeneralSettings settings) {
-        // Since it's a singleton config effectively, we might want to update the existing one or create new
-        // For simple history, we can always insert new, or update existing ID 1
+        // APPEND-ONLY for history tracking
+        settings.setId(null);
         return repository.save(settings);
     }
 }
+

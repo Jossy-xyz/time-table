@@ -17,4 +17,9 @@ export const generalSettingsService = {
     const response = await apiClient.post("/settings/general", settings);
     return response as GeneralSettings;
   },
+
+  getHistory: async (): Promise<GeneralSettings[]> => {
+    const response = await apiClient.get("/settings/general/history");
+    return response as GeneralSettings[];
+  },
 };

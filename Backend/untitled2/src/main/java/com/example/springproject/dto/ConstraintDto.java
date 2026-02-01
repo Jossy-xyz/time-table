@@ -6,6 +6,7 @@ import java.util.Date;
 @Data
 public class ConstraintDto {
     private Integer id;
+    private String name;
     private Date date;
     private String periodIncE;
     private String periodExcE;

@@ -35,9 +35,7 @@ A manual student registration (i.e create right in respect to registration) **ot
 
 how do we propose handling control
 
-
-
-## Considerations: will need to expand the
+Considerations: will need to expand the
 
 - Examination Category, e.g., Regular, TopUp, Part-Time, Online. (default = Regular)
 - Campus Type (Single or Multi) default = single
@@ -52,7 +50,7 @@ how do we propose handling control
 
 ## ii. working on the crud interface, corr with db & mental mapping 
 
-## The venues tab or access is for college rep upwards access 
+## The venues tab or access is for college rep upwards access also timetable genertion can only be done by the AD so it means the Operations Hub doesnt show in the rest levels
 
 ## timetable grid period selctor (i.e Calendar Projection Surface)
 - Show the full week durations/period mapping (period is saved from 0 on the backend, can show 1 in the front up until the end week)

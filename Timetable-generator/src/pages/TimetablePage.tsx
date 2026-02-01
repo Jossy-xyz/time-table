@@ -1,17 +1,21 @@
 import React, { useState } from "react";
-import { FiActivity, FiCheck, FiDownload, FiInfo, FiX } from "react-icons/fi";
+import { motion } from "framer-motion";
+import {
+  FiActivity,
+  FiCheck,
+  FiDownload,
+  FiInfo,
+  FiLock,
+  FiSettings,
+  FiX,
+} from "react-icons/fi";
 import { toast } from "react-toastify";
 import { generalSettingsService } from "../services/api/generalSettingsService";
 import { constraintService } from "../services/api/constraintService";
 import { algorithmService } from "../services/api/algorithmService";
 import { GeneralSettings } from "../types/institutional";
-
-interface PeriodSlot {
-  id: string;
-  day: string;
-  period: number;
-  selected: boolean;
-}
+import { periodExclusionService } from "../services/api/periodExclusionService";
+import { CalendarGrid } from "../components/CalendarPeriodSelector/CalendarGrid";
 
 /**
  * Institutional Academic Grid Orchestrator (Timetable)
@@ -19,105 +23,75 @@ interface PeriodSlot {
  */
 const TimetablePage: React.FC = () => {
   // Core State
-  // Config loaded from backend (readonly here)
   const [settings, setSettings] = useState<Partial<GeneralSettings>>({});
-
-  // Interactive Grid State
-  const [gridInitialized, setGridInitialized] = useState(false);
-  const [periodSlots, setPeriodSlots] = useState<PeriodSlot[]>([]);
+  const [loadedConstraintId, setLoadedConstraintId] = useState<number | null>(
+    null,
+  );
+  const [activeExclusionId, setActiveExclusionId] = useState<number | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [generalHistory, setGeneralHistory] = useState<GeneralSettings[]>([]);
+  const [constraintHistory, setConstraintHistory] = useState<any[]>([]);
+  const [showConfigSelector, setShowConfigSelector] = useState(false);
 
-  // Checklist State
+  // Checklist State - Representing the hard business gate
   const [checklist, setChecklist] = useState({
     session: false,
     semester: false,
     grid: false,
     constraints: false,
+    exclusions: false, // Core requirement: Exclusions must be verified/initialized
   });
 
-  const dayNames = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-
-  // Load initial settings and initialize grid
+  // Reactive Checklist Engine
   React.useEffect(() => {
-    const loadSettings = async () => {
+    setChecklist({
+      session: !!settings.session,
+      semester: !!settings.semester,
+      grid: !!(settings.periodsPerDay && settings.daysPerWeek),
+      constraints: !!loadedConstraintId,
+      exclusions: !!activeExclusionId,
+    });
+  }, [settings, loadedConstraintId, activeExclusionId]);
+
+  // Load initial settings and histories
+  React.useEffect(() => {
+    const loadReadiness = async () => {
       setIsLoading(true);
       try {
-        const [settingsData, constraintsData] = await Promise.all([
-          generalSettingsService.get(),
-          constraintService.getLatest(),
-        ]);
+        const [settingsData, constraintsData, activeExclusions, gHist, cHist] =
+          await Promise.all([
+            generalSettingsService.get(),
+            constraintService.getLatest(),
+            periodExclusionService.getActiveExclusions(),
+            generalSettingsService.getHistory(),
+            constraintService.getHistory(),
+          ]);
 
         if (settingsData) {
           setSettings(settingsData);
+          if (constraintsData) setLoadedConstraintId(constraintsData.id);
+          if (activeExclusions) setActiveExclusionId(activeExclusions.id);
 
-          const hasSession = !!settingsData.session;
-          const hasSemester = !!settingsData.semester;
-          const hasGrid = !!(
-            settingsData.periodsPerDay && settingsData.daysPerWeek
-          );
-          const hasConstraints = !!constraintsData;
-
-          setChecklist({
-            session: hasSession,
-            semester: hasSemester,
-            grid: hasGrid,
-            constraints: hasConstraints,
-          });
-
-          // Verify critical config exists
-          if (hasGrid) {
-            initializePeriodSlots(settingsData.periodsPerDay!);
-            setGridInitialized(true);
-          } else {
+          if (!(settingsData.periodsPerDay && settingsData.daysPerWeek)) {
             toast.warn(
-              "Grid configuration incompele. Please visit Settings page.",
+              "Grid topology incomplete. Please define dimensions in Settings.",
             );
           }
         }
+
+        setGeneralHistory(gHist);
+        setConstraintHistory(cHist);
       } catch (error) {
-        console.error("Failed to load existing settings", error);
-        toast.error("Failed to load institutional configuration");
+        console.error("Critical: Readiness check failed", error);
+        toast.error("Failed to verify institutional readiness");
       } finally {
         setIsLoading(false);
       }
     };
-    loadSettings();
+    loadReadiness();
   }, []);
-
-  const initializePeriodSlots = (periods: number) => {
-    const slots: PeriodSlot[] = [];
-    dayNames.forEach((day) => {
-      for (let period = 1; period <= periods; period++) {
-        slots.push({
-          id: `${day}-P${period}`,
-          day,
-          period,
-          selected: true,
-        });
-      }
-    });
-    setPeriodSlots(slots);
-  };
-
-  const togglePeriodSelection = (slotId: string) => {
-    setPeriodSlots((prev) =>
-      prev.map((slot) =>
-        slot.id === slotId ? { ...slot, selected: !slot.selected } : slot,
-      ),
-    );
-  };
-
-  const selectAllPeriods = () => {
-    setPeriodSlots((prev) => prev.map((slot) => ({ ...slot, selected: true })));
-    toast.success("All periods selected");
-  };
-
-  const deselectAllPeriods = () => {
-    setPeriodSlots((prev) =>
-      prev.map((slot) => ({ ...slot, selected: false })),
-    );
-    toast.info("All periods deselected");
-  };
 
   const generateCsv = async () => {
     try {
@@ -130,22 +104,22 @@ const TimetablePage: React.FC = () => {
   };
 
   const handleTimetableGeneration = async () => {
-    const selectedSlots = periodSlots.filter((slot) => slot.selected);
-    if (selectedSlots.length === 0) {
-      toast.warn("Select at least one period to proceed");
+    if (!settings.id) {
+      toast.error(
+        "Institutional configuration record (ID) missing. Cannot initialize engine.",
+      );
       return;
     }
 
-    // Here we would typically update the "selected periods" in the backend
-    // Since our backend doesn't explicit store per-period selection in general_settings yet,
-    // we might need to assume ALL periods defined in config are valid,
-    // OR we update general_settings if we add a field for it.
-    // For now, let's treat this as the "Trigger Algorithm" button.
-
     try {
-      toast.info("Initializing Timetable Generation Engine...");
+      toast.info(`Initializing Engine for Session ${settings.session}...`);
 
-      const response = await algorithmService.trigger();
+      // Pass the EXACT IDs loaded in the frontend to the algorithm
+      const response = await algorithmService.trigger(
+        settings.id,
+        loadedConstraintId || undefined,
+        activeExclusionId || undefined,
+      );
 
       if (response.status === "QUEUED") {
         toast.success(
@@ -159,9 +133,6 @@ const TimetablePage: React.FC = () => {
       );
     }
   };
-
-  const selectedCount = periodSlots.filter((s) => s.selected).length;
-  const totalSlots = periodSlots.length;
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -177,6 +148,13 @@ const TimetablePage: React.FC = () => {
         </div>
         <div className="flex gap-4">
           <button
+            onClick={() => setShowConfigSelector(!showConfigSelector)}
+            className="flex items-center gap-2 px-6 py-3 bg-institutional-primary text-white rounded-institutional text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-md"
+          >
+            <FiSettings className={showConfigSelector ? "rotate-90" : ""} />
+            {showConfigSelector ? "Close Lock" : "Triple-Lock Selector"}
+          </button>
+          <button
             onClick={generateCsv}
             className="flex items-center gap-2 px-6 py-3 bg-white border border-brick/10 rounded-institutional text-[10px] font-black uppercase tracking-widest text-brick hover:bg-brick hover:text-white transition-all shadow-sm"
           >
@@ -185,18 +163,136 @@ const TimetablePage: React.FC = () => {
         </div>
       </div>
 
+      {showConfigSelector && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-page rounded-institutional shadow-2xl w-full max-w-2xl p-8 space-y-8 border border-brick/20"
+          >
+            <div className="flex justify-between items-center border-b border-brick/10 pb-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-brick/10 rounded-full flex items-center justify-center">
+                  <FiLock className="text-brick" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-[0.2em] text-brick">
+                    Configuration Sentinel
+                  </h3>
+                  <p className="text-[10px] text-institutional-muted font-bold">
+                    Select validated records for generation
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowConfigSelector(false)}
+                className="p-2 hover:bg-brick/5 rounded-full transition-colors"
+              >
+                <FiX className="text-institutional-muted" size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Box 1: General Settings */}
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-institutional-primary">
+                  <span className="w-5 h-5 bg-gold/20 text-gold-deep rounded-full flex items-center justify-center text-[8px]">
+                    1
+                  </span>
+                  Academic Engine Context
+                </label>
+                <select
+                  className="w-full bg-surface border border-brick/10 p-4 rounded-institutional font-bold text-sm focus:border-gold outline-none transition-all"
+                  value={settings.id || ""}
+                  onChange={(e) => {
+                    const selected = generalHistory.find(
+                      (h) => h.id === parseInt(e.target.value),
+                    );
+                    if (selected) setSettings(selected);
+                  }}
+                >
+                  {generalHistory.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.session} • {h.semester === "1" ? "Harmattan" : "Rain"}{" "}
+                      (ID: {h.id})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[9px] text-institutional-muted italic px-1">
+                  Defines session dates, levels, and grid capacity.
+                </p>
+              </div>
+
+              {/* Box 2: Constraints */}
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-institutional-primary">
+                  <span className="w-5 h-5 bg-gold/20 text-gold-deep rounded-full flex items-center justify-center text-[8px]">
+                    2
+                  </span>
+                  Constraint Logic Ledger
+                </label>
+                <select
+                  className="w-full bg-surface border border-brick/10 p-4 rounded-institutional font-bold text-sm focus:border-gold outline-none transition-all"
+                  value={loadedConstraintId || ""}
+                  onChange={(e) =>
+                    setLoadedConstraintId(
+                      e.target.value ? parseInt(e.target.value) : null,
+                    )
+                  }
+                >
+                  <option value="">-- No Constraints (Raw Run) --</option>
+                  {constraintHistory.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({new Date(c.date).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[9px] text-institutional-muted italic px-1">
+                  Enforces course sequences and venue preferences.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-brick/5 p-4 rounded-institutional border border-brick/10">
+              <div className="flex items-start gap-4">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  <FiActivity className="text-gold" size={14} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-institutional-primary mb-1">
+                    Active Exclusion Matrix (Auto-Linked)
+                  </p>
+                  <p className="text-[9px] text-institutional-muted">
+                    The engine will automatically pull the <b>Active</b>{" "}
+                    temporal exclusion mask associated with the selected
+                    settings ID.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowConfigSelector(false)}
+              className="w-full py-4 bg-brick text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-institutional shadow-lg hover:brightness-110 transition-all"
+            >
+              Verify & Lock Configuration
+            </button>
+          </motion.div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Status Column */}
-        <div className="lg:col-span-4 space-y-8">
-          <section className="bg-surface p-6 rounded-institutional border border-brick/5 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 border-b border-brick/5 pb-4">
+        <div className="lg:col-span-4 space-y-5">
+          <section className="bg-surface p-6 rounded-institutional border border-brick/5 shadow-sm space-y-3">
+            <div className="flex items-center gap-3 border-b border-brick/5 pb-2">
               <FiInfo className="text-brick text-lg" />
               <h2 className="text-xs font-black uppercase tracking-widest text-brick">
                 System Readiness Checklist
               </h2>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               {[
                 { label: "Academic Session Defined", valid: checklist.session },
                 { label: "Semester Cycle Active", valid: checklist.semester },
@@ -204,6 +300,10 @@ const TimetablePage: React.FC = () => {
                 {
                   label: "Constraints Ledger Loaded",
                   valid: checklist.constraints,
+                },
+                {
+                  label: "Exclusion Matrix Initialized",
+                  valid: checklist.exclusions,
                 },
               ].map((item, idx) => (
                 <div
@@ -236,180 +336,48 @@ const TimetablePage: React.FC = () => {
               )}
             </div>
           </section>
+
+          {/* Submit Button Section - Refactored to Left Column */}
+          <section className="bg-surface p-6 rounded-institutional border border-brick/5 shadow-sm mt-8">
+            <button
+              onClick={handleTimetableGeneration}
+              disabled={!Object.values(checklist).every(Boolean) || isLoading}
+              className="w-full px-6 py-4 bg-gradient-to-br from-gold to-gold-deep text-brick-deep rounded-institutional text-[11px] font-black uppercase tracking-[0.2em] shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              Initiate Timetable Generation
+            </button>
+            <div className="mt-4 flex justify-between items-center text-[8px] font-black uppercase tracking-[0.2em] text-institutional-muted italic">
+              <span>Bells University Registry Engine v4.0</span>
+              <span className="flex items-center gap-1">
+                <FiActivity className="animate-pulse" /> System Online
+              </span>
+            </div>
+          </section>
         </div>
 
         {/* Interactive Calendar Grid */}
-        <div className="lg:col-span-8">
-          <section className="bg-surface p-8 rounded-institutional border border-brick/5 shadow-sm min-h-[600px] flex flex-col">
-            <div className="flex items-center justify-between mb-8 border-b border-brick/5 pb-4">
-              <div className="flex items-center gap-3">
-                <FiActivity className="text-brick text-xl" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-brick">
-                  Calendar Projection Surface
-                </h2>
-              </div>
-              {gridInitialized && (
-                <span className="text-[10px] font-black bg-status-success/10 text-status-success px-3 py-1 rounded-full uppercase tracking-widest italic animate-pulse">
-                  Engine Synchronized
-                </span>
-              )}
+        <div className="lg:col-span-8 overflow-hidden">
+          {!checklist.grid ? (
+            <section className="bg-surface p-12 rounded-institutional border border-brick/5 shadow-sm min-h-[600px] flex flex-col items-center justify-center text-center opacity-40">
+              <div className="text-7xl mb-6 grayscale">📅</div>
+              <h3 className="text-lg font-black uppercase tracking-widest mb-2">
+                Grid Topology Undefined
+              </h3>
+              <p className="max-w-xs text-xs font-bold italic">
+                Execute assessment parameters in the settings module to
+                visualize the temporal manifest.
+              </p>
+            </section>
+          ) : (
+            <div className="space-y-6">
+              <CalendarGrid
+                settingsId={settings.id}
+                onSave={() => {
+                  toast.success("Exclusions updated. Ready for generation.");
+                }}
+              />
             </div>
-
-            {!gridInitialized ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40">
-                <div className="text-7xl mb-6 grayscale">📅</div>
-                <h3 className="text-lg font-black uppercase tracking-widest mb-2">
-                  Grid Dimension Unknown
-                </h3>
-                <p className="max-w-xs text-xs font-bold italic">
-                  Execute assessment parameters to visualize the temporal
-                  manifest.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Grid Controls */}
-                <div className="flex items-center justify-between p-4 bg-page/50 rounded-institutional border border-brick/10">
-                  <div className="flex items-center gap-4">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-institutional-muted">
-                      Selected: {selectedCount} / {totalSlots}
-                    </span>
-                    <div className="h-4 w-px bg-brick/20" />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={selectAllPeriods}
-                        className="px-3 py-1.5 bg-status-success/10 text-status-success rounded text-[9px] font-black uppercase tracking-widest hover:bg-status-success/20 transition-all flex items-center gap-1"
-                      >
-                        <FiCheck size={12} /> Select All
-                      </button>
-                      <button
-                        onClick={deselectAllPeriods}
-                        className="px-3 py-1.5 bg-status-error/10 text-status-error rounded text-[9px] font-black uppercase tracking-widest hover:bg-status-error/20 transition-all flex items-center gap-1"
-                      >
-                        <FiX size={12} /> Clear All
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Interactive Grid */}
-                <div className="space-y-6">
-                  {/* Week Header */}
-                  <div className="grid grid-cols-7 gap-3">
-                    {dayNames.map((day) => (
-                      <div
-                        key={day}
-                        className="text-center py-3 bg-brick/5 rounded-institutional border border-brick/10"
-                      >
-                        <span className="text-[10px] font-black uppercase tracking-widest text-brick">
-                          {day}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Period Rows */}
-                  {Array.from(
-                    { length: settings.periodsPerDay || 0 },
-                    (_, periodIdx) => (
-                      <div key={periodIdx} className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-institutional-muted">
-                            Period {periodIdx + 1}
-                          </span>
-                          <div className="flex-1 h-px bg-brick/10" />
-                        </div>
-                        <div className="grid grid-cols-7 gap-3">
-                          {dayNames.map((day) => {
-                            const slot = periodSlots.find(
-                              (s) =>
-                                s.day === day && s.period === periodIdx + 1,
-                            );
-                            if (!slot) return null;
-
-                            return (
-                              <button
-                                key={slot.id}
-                                onClick={() => togglePeriodSelection(slot.id)}
-                                className={`
-                                relative p-4 rounded-institutional border-2 transition-all duration-300 group
-                                ${
-                                  slot.selected
-                                    ? "bg-brick text-white border-brick shadow-lg shadow-brick/20 hover:scale-105"
-                                    : "bg-white text-institutional-muted border-brick/10 hover:border-brick/30 hover:bg-brick/5"
-                                }
-                              `}
-                              >
-                                <div className="flex flex-col items-center gap-2">
-                                  <div
-                                    className={`
-                                  w-8 h-8 rounded-full flex items-center justify-center transition-all
-                                  ${
-                                    slot.selected
-                                      ? "bg-white/20"
-                                      : "bg-brick/5 group-hover:bg-brick/10"
-                                  }
-                                `}
-                                  >
-                                    {slot.selected ? (
-                                      <FiCheck
-                                        className="text-white"
-                                        size={16}
-                                      />
-                                    ) : (
-                                      <span className="text-[10px] font-black text-brick/40">
-                                        {periodIdx + 1}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span
-                                    className={`
-                                  text-[9px] font-black uppercase tracking-widest
-                                  ${slot.selected ? "text-white/80" : "text-institutional-muted"}
-                                `}
-                                  >
-                                    SLOT
-                                  </span>
-                                </div>
-
-                                {/* Hover Indicator */}
-                                <div
-                                  className={`
-                                absolute inset-0 rounded-institutional border-2 border-gold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none
-                                ${slot.selected ? "border-gold" : "border-brick"}
-                                `}
-                                />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ),
-                  )}
-                </div>
-
-                {/* Submit Button */}
-                <div className="pt-6 border-t border-brick/10">
-                  <button
-                    onClick={handleTimetableGeneration}
-                    disabled={
-                      !Object.values(checklist).every(Boolean) ||
-                      selectedCount === 0 ||
-                      isLoading
-                    }
-                    className="w-full px-8 py-4 bg-gradient-to-br from-gold to-gold-deep text-brick-deep rounded-institutional text-xs font-black uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  >
-                    Generate Timetable ({selectedCount} Periods Active)
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-auto pt-8 border-t border-brick/5 flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em] text-institutional-muted italic">
-              <span>Bells University Registry Engine v4.0</span>
-              <span>Proprietary Institutional Asset</span>
-            </div>
-          </section>
+          )}
         </div>
       </div>
     </div>

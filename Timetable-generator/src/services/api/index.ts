@@ -8,3 +8,5 @@ export { timetableService } from "./timetableService";
 export { collegeService } from "./collegeService";
 export { departmentService } from "./departmentService";
 export { programService } from "./programService";
+export { generalSettingsService } from "./generalSettingsService";
+export { periodExclusionService } from "./periodExclusionService";

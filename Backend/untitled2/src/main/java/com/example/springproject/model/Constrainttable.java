@@ -10,24 +10,46 @@ public class Constrainttable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "Date", updatable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date date;
+    @Column(name = "name", length = 255)
+    private String name = "Untitled Snapshot";
 
+    @Column(name = "record_date", updatable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date recordDate;
+
+    @Column(name = "period_inc_e")
     private String periodIncE;
+
+    @Column(name = "period_exc_e")
     private String periodExcE;
+
+    @Column(name = "venue_inc_e")
     private String venueIncE;
+
+    @Column(name = "venue_exc_e")
     private String venueExcE;
+
+    @Column(name = "period_inc_v")
     private String periodIncV;
+
+    @Column(name = "period_exc_v")
     private String periodExcV;
+
+    @Column(name = "exam_w_aft_e")
     private String examWAftE;
+
+    @Column(name = "exam_w_coin_e")
     private String examWCoinE;
+
+    @Column(name = "exam_exc_e")
     private String examExcE;
+
+    @Column(name = "front_l_e")
     private String frontLE;
 
     @PrePersist
     protected void onCreate() {
-        date = new Date();
+        if (recordDate == null) recordDate = new Date();
     }
 
     public Integer getId() {
@@ -38,12 +60,20 @@ public class Constrainttable {
         this.id = id;
     }
 
-    public Date getDate() {
-        return date;
+    public String getName() {
+        return name;
     }
 
-    public void setDate(Date date) {
-        this.date = date;
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Date getRecordDate() {
+        return recordDate;
+    }
+
+    public void setRecordDate(Date recordDate) {
+        this.recordDate = recordDate;
     }
 
     public String getPeriodIncE() {
