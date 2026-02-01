@@ -1,7 +1,9 @@
 package com.example.springproject.service;
 
 import com.example.springproject.model.Constrainttable;
+import java.util.List;
 
 public interface Constraintservice {
-    public Constrainttable saveConstrainttable(Constrainttable constrainttable);
+    Constrainttable saveConstrainttable(Constrainttable constrainttable);
+    List<Constrainttable> getAllConstraints();
 }

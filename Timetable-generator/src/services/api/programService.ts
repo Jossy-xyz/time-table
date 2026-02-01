@@ -1,21 +1,30 @@
-import apiClient from "./client";
+import { apiClient } from "./apiClient";
+import { Program } from "../../types/institutional";
 
-export interface Program {
-  id: string | number;
-  name: string;
-  code: string;
-  deptID: string | number;
-  newCodeID?: string | number;
-}
-
+/**
+ * Institutional Program Service
+ * Features: Type-safe academic program interactions synchronized with Backend DTOs.
+ */
 export const programService = {
   getAll: async (): Promise<Program[]> => {
-    const response = await apiClient.get<Program[]>("/program/get");
-    return response.data;
+    const response = await apiClient.get("/program/get");
+    return response as Program[];
   },
 
-  getByDepartment: async (deptId: string | number): Promise<Program[]> => {
+  getByDepartment: async (deptId: number): Promise<Program[]> => {
     const programs = await programService.getAll();
-    return programs.filter((p) => String(p.deptID) === String(deptId));
+    return programs.filter(
+      (p) => p.departmentId === deptId || p.deptID === deptId,
+    );
+  },
+
+  create: async (programData: Partial<Program>): Promise<Program> => {
+    const payload = {
+      code: programData.code,
+      name: programData.name,
+      department: { id: programData.departmentId },
+    };
+    const response = await apiClient.post("/program/post", payload);
+    return response as Program;
   },
 };

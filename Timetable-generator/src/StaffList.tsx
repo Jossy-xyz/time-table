@@ -6,26 +6,10 @@ import {
   FiSave,
   FiXCircle,
   FiUserPlus,
-  FiFilter,
   FiSearch,
 } from "react-icons/fi";
-
-interface Staff {
-  id: string;
-  surname: string;
-  firstname: string;
-  middlename: string;
-  staff_id: string;
-  title: string;
-  deptid: string | null;
-  statusID: string;
-  type: string;
-  in_use: string;
-  duty_count: string;
-  specialization: string;
-  research_area: string;
-  discipline: string;
-}
+import { staffService } from "./services/api/staffService";
+import { Staff } from "./types/institutional";
 
 interface StaffListProps {
   onStaffList?: (val: string) => void;
@@ -37,25 +21,23 @@ interface StaffListProps {
  */
 export default function StaffList({ onStaffList }: StaffListProps) {
   // Form State
-  const [formData, setFormData] = useState({
-    surnamee: "",
+  const [formData, setFormData] = useState<Partial<Staff>>({
+    title: "",
+    surname: "",
     firstname: "",
     middlename: "",
-    staff_id: "",
-    title: "",
-    statusid: "",
-    type: "",
-    dutyCount: "",
-    special: "",
-    research: "",
-    dis: "",
+    staffId: "",
+    statusId: 1,
+    type: 1,
+    specialization: "",
+    researchArea: "",
   });
 
-  const deptid = localStorage.getItem("deptid");
   const [staffs, setStaffs] = useState<Staff[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
   const [editStaffData, setEditStaffData] = useState<Partial<Staff>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleFormChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -65,13 +47,32 @@ export default function StaffList({ onStaffList }: StaffListProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
+  const fetchStaff = async () => {
+    setIsLoading(true);
+    try {
+      const data = await staffService.getAll();
+      setStaffs(data);
+    } catch (error: any) {
+      toast.error(
+        error.message || "Critical connection failure to personnel ledger",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
   const filteredStaff = staffs.filter((staff) => {
     const searchStr = searchQuery.toLowerCase();
+    const fullName =
+      `${staff.title || ""} ${staff.firstname || ""} ${staff.surname || ""}`.toLowerCase();
     return (
-      staff.surname?.toLowerCase().includes(searchStr) ||
-      staff.firstname?.toLowerCase().includes(searchStr) ||
-      staff.staff_id?.toLowerCase().includes(searchStr) ||
-      staff.discipline?.toLowerCase().includes(searchStr)
+      fullName.includes(searchStr) ||
+      staff.staffId?.toLowerCase().includes(searchStr) ||
+      staff.specialization?.toLowerCase().includes(searchStr)
     );
   });
 
@@ -84,128 +85,60 @@ export default function StaffList({ onStaffList }: StaffListProps) {
   const submitStaff = async (e: FormEvent) => {
     e.preventDefault();
 
-    // 1. Mandatory Data Check
-    const { surnamee, firstname, staff_id, title, statusid, type, dutyCount } =
-      formData;
-    if (!surnamee || !firstname || !staff_id || !title || !statusid || !type) {
-      toast.warn("Verify all mandatory academic personnel fields");
-      return;
-    }
-
-    // 2. Load Factor Validation
-    if (isNaN(Number(dutyCount)) || Number(dutyCount) < 0) {
-      toast.error(
-        "Data integrity Error: Duty count must be a positive integer",
+    if (!formData.surname || !formData.firstname || !formData.staffId) {
+      toast.warn(
+        "Verify all mandatory academic personnel fields (Surname, Firstname, Staff ID)",
       );
       return;
     }
 
     try {
-      const res = await fetch("http://localhost:8080/staff/post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          surname: formData.surnamee,
-          firstname: formData.firstname,
-          middlename: formData.middlename,
-          staff_id: formData.staff_id,
-          title: formData.title,
-          deptid: deptid,
-          statusID: formData.statusid,
-          type: formData.type,
-          duty_count: formData.dutyCount,
-          specialization: formData.special,
-          research_area: formData.research,
-          discipline: formData.dis,
-        }),
+      await staffService.create(formData);
+      toast.success("✅ Academic personnel record committed to registry");
+      if (onStaffList) onStaffList("");
+      fetchStaff();
+      setFormData({
+        title: "",
+        surname: "",
+        firstname: "",
+        middlename: "",
+        staffId: "",
+        statusId: 1,
+        type: 1,
+        specialization: "",
+        researchArea: "",
       });
-
-      if (res.ok) {
-        toast.success("✅ Academic personnel record committed to registry");
-        if (onStaffList) onStaffList("");
-        fetchStaff();
-        setFormData({
-          surnamee: "",
-          firstname: "",
-          middlename: "",
-          staff_id: "",
-          title: "",
-          statusid: "",
-          type: "",
-          dutyCount: "",
-          special: "",
-          research: "",
-          dis: "",
-        });
-      } else {
-        toast.error("❌ Personnel record commit failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during personnel sync");
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during personnel sync");
     }
   };
-
-  const fetchStaff = async () => {
-    const username = localStorage.getItem("username");
-    try {
-      const res = await fetch(
-        `http://localhost:8080/staff/get?username=${username}`,
-      );
-      if (!res.ok) {
-        toast.error("⚠️ Failed to synchronize personnel registry");
-        return;
-      }
-      const data = await res.json();
-      setStaffs(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error("Critical connection failure to personnel ledger");
-    }
-  };
-
-  useEffect(() => {
-    fetchStaff();
-  }, []);
 
   const handleEditClick = (staff: Staff) => {
     setEditId(staff.id);
     setEditStaffData({ ...staff });
   };
 
-  const handleSave = async (id: string) => {
+  const handleSave = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8080/staff/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editStaffData),
-      });
-      if (res.ok) {
-        toast.success("Personnel record modified in ledger");
-        setEditId(null);
-        fetchStaff();
-      } else {
-        toast.error("Registry modification failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during record save");
+      await staffService.update(id, editStaffData);
+      toast.success("Personnel record modified in ledger");
+      setEditId(null);
+      fetchStaff();
+    } catch (error: any) {
+      toast.error("Registry modification failed");
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (
       !window.confirm("Purge personnel record from faculty ledger permanently?")
     )
       return;
     try {
-      const res = await fetch(`http://localhost:8080/staff/delete/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Personnel record purged successfully");
-        fetchStaff();
-      } else {
-        toast.error("Purge operation failed");
-      }
-    } catch (error) {
+      await staffService.delete(id);
+      toast.success("Personnel record purged successfully");
+      fetchStaff();
+    } catch (error: any) {
       toast.error("Critical failure during personnel purge");
     }
   };
@@ -225,14 +158,13 @@ export default function StaffList({ onStaffList }: StaffListProps) {
         <form onSubmit={submitStaff} className="space-y-6">
           <div className="form-grid-institutional">
             {[
-              { label: "Title", name: "title", placeholder: "e.g. Dr., Prof." },
-              { label: "Surname", name: "surnamee" },
+              { label: "Title", name: "title", placeholder: "e.g. Dr.(Mrs)" },
+              { label: "Surname", name: "surname" },
               { label: "First Name", name: "firstname" },
               { label: "Middle Name", name: "middlename" },
-              { label: "Staff ID", name: "staff_id" },
-              { label: "Status Tier", name: "statusid" },
-              { label: "Faculty Type", name: "type" },
-              { label: "Duty Count", name: "dutyCount" },
+              { label: "Staff ID", name: "staffId" },
+              { label: "Specialization", name: "specialization" },
+              { label: "Research Area", name: "researchArea" },
             ].map((field) => (
               <div key={field.name} className="space-y-2">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
@@ -247,18 +179,6 @@ export default function StaffList({ onStaffList }: StaffListProps) {
                 />
               </div>
             ))}
-            <div className="md:col-span-2 lg:col-span-3 space-y-2">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
-                Primary Academic Discipline
-              </label>
-              <input
-                type="text"
-                name="dis"
-                className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-                value={formData.dis}
-                onChange={handleFormChange}
-              />
-            </div>
           </div>
           <div className="pt-4 border-t border-brick/5">
             <button
@@ -278,13 +198,7 @@ export default function StaffList({ onStaffList }: StaffListProps) {
             <h2 className="text-xl font-black text-brick uppercase tracking-widest">
               Faculty Ledger
             </h2>
-            <span className="text-[10px] font-black bg-brick/10 text-brick px-2 py-1 rounded-full uppercase italic animate-pulse">
-              Sync Active
-            </span>
           </div>
-          <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-institutional-muted hover:text-brick transition-colors">
-            <FiFilter /> Filter Manifest
-          </button>
         </div>
 
         <div className="institutional-table-container">
@@ -296,34 +210,27 @@ export default function StaffList({ onStaffList }: StaffListProps) {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search by Name, ID or Discipline..."
+                  placeholder="Search by Name, ID or Specialization..."
                   className="w-full pl-10 pr-4 py-2.5 bg-surface border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all shadow-sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <button
-                className="px-6 py-2.5 bg-brick text-white rounded-institutional text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-brick-deep transition-all flex items-center gap-2 shrink-0"
-                onClick={() =>
-                  toast.info(`Faculty filtered by: ${searchQuery || "All"}`)
-                }
-              >
-                <FiSearch size={14} /> Search
-              </button>
             </div>
             <div className="text-[10px] font-black uppercase text-institutional-muted tracking-widest bg-brick/5 px-3 py-2 rounded-full border border-brick/10 inline-flex items-center self-start md:self-center">
-              Personnel Registry: {filteredStaff.length} records
+              {isLoading
+                ? "Synchronizing..."
+                : `Personnel Registry: ${filteredStaff.length} records`}
             </div>
           </div>
 
           <table className="institutional-table">
             <thead>
               <tr>
-                <th>Title / Designation</th>
                 <th>Full Name</th>
                 <th className="text-center">Staff ID</th>
-                <th className="text-center">Load Factor</th>
-                <th>Discipline</th>
+                <th className="text-center">Status</th>
+                <th>Specialization</th>
                 <th className="text-right">Actions</th>
               </tr>
             </thead>
@@ -336,62 +243,74 @@ export default function StaffList({ onStaffList }: StaffListProps) {
                   {editId === staff.id ? (
                     <>
                       <td className="px-4 py-2">
-                        <input
-                          name="title"
-                          value={editStaffData.title}
-                          onChange={(e) =>
-                            setEditStaffData((p) => ({
-                              ...p,
-                              title: e.target.value,
-                            }))
-                          }
-                          className="w-20 bg-page border border-brick/20 px-2 py-1 rounded text-xs font-bold"
-                        />
-                      </td>
-                      <td className="px-4 py-2 flex gap-1">
-                        <input
-                          value={editStaffData.surname}
-                          onChange={(e) =>
-                            setEditStaffData((p) => ({
-                              ...p,
-                              surname: e.target.value,
-                            }))
-                          }
-                          className="w-1/3 bg-page border border-brick/20 px-2 py-1 rounded text-xs"
-                        />
-                        <input
-                          value={editStaffData.firstname}
-                          onChange={(e) =>
-                            setEditStaffData((p) => ({
-                              ...p,
-                              firstname: e.target.value,
-                            }))
-                          }
-                          className="w-1/3 bg-page border border-brick/20 px-2 py-1 rounded text-xs"
-                        />
+                        <div className="flex flex-col gap-1">
+                          <input
+                            value={editStaffData.title}
+                            placeholder="Title"
+                            onChange={(e) =>
+                              setEditStaffData((p) => ({
+                                ...p,
+                                title: e.target.value,
+                              }))
+                            }
+                            className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs"
+                          />
+                          <input
+                            value={editStaffData.surname}
+                            placeholder="Surname"
+                            onChange={(e) =>
+                              setEditStaffData((p) => ({
+                                ...p,
+                                surname: e.target.value,
+                              }))
+                            }
+                            className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs"
+                          />
+                          <input
+                            value={editStaffData.firstname}
+                            placeholder="Firstname"
+                            onChange={(e) =>
+                              setEditStaffData((p) => ({
+                                ...p,
+                                firstname: e.target.value,
+                              }))
+                            }
+                            className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs"
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-2 text-center">
                         <input
-                          value={editStaffData.staff_id}
+                          value={editStaffData.staffId}
                           onChange={(e) =>
                             setEditStaffData((p) => ({
                               ...p,
-                              staff_id: e.target.value,
+                              staffId: e.target.value,
                             }))
                           }
                           className="w-24 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
                         />
                       </td>
-                      <td className="px-4 py-2 text-center text-institutional-muted text-[10px] font-mono italic">
-                        #{staff.duty_count}
-                      </td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 text-center">
                         <input
-                          value={editStaffData.discipline}
+                          type="number"
+                          value={editStaffData.statusId}
                           onChange={(e) =>
                             setEditStaffData((p) => ({
                               ...p,
-                              discipline: e.target.value,
+                              statusId: parseInt(e.target.value),
+                            }))
+                          }
+                          className="w-20 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <input
+                          value={editStaffData.specialization}
+                          onChange={(e) =>
+                            setEditStaffData((p) => ({
+                              ...p,
+                              specialization: e.target.value,
                             }))
                           }
                           className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs"
@@ -415,31 +334,26 @@ export default function StaffList({ onStaffList }: StaffListProps) {
                   ) : (
                     <>
                       <td>
-                        <span className="text-brick font-black italic uppercase tracking-tighter opacity-80">
-                          {staff.title || "Lecturer"}
-                        </span>
-                      </td>
-                      <td>
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold uppercase tracking-tight">
-                            {staff.surname}, {staff.firstname}
+                          <span className="text-sm font-black uppercase tracking-tight">
+                            {staff.title} {staff.surname} {staff.firstname}
                           </span>
-                          <span className="text-[10px] text-institutional-muted opacity-40 italic">
-                            {staff.middlename || "Principal Personnel"}
+                          <span className="text-[10px] opacity-40 italic">
+                            {staff.middlename || "—"}
                           </span>
                         </div>
                       </td>
                       <td className="text-center font-mono text-[10px] font-black opacity-60 tracking-wider">
-                        [{staff.staff_id}]
+                        [{staff.staffId}]
                       </td>
                       <td className="text-center">
                         <span className="status-pill status-pill-info">
-                          Load: {staff.duty_count}
+                          {staff.statusId === 1 ? "Active" : "On Leave"}
                         </span>
                       </td>
                       <td>
                         <span className="text-[10px] font-black uppercase text-institutional-muted tracking-widest">
-                          {staff.discipline}
+                          {staff.specialization}
                         </span>
                       </td>
                       <td className="text-right space-x-1">
@@ -481,18 +395,11 @@ export default function StaffList({ onStaffList }: StaffListProps) {
                     setCurrentPage((p) => Math.min(totalPages, p + 1))
                   }
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-white border border-brick/10 rounded text-[10px] font-black uppercase disabled:opacity-50 hover:bg-brick/5 transition-all"
+                  className="px-4 py-2 bg-white border border-brick/10 rounded text-[10px) font-black uppercase disabled:opacity-50 hover:bg-brick/5 transition-all"
                 >
                   Next
                 </button>
               </div>
-            </div>
-          )}
-          {filteredStaff.length === 0 && (
-            <div className="py-20 text-center opacity-40 italic">
-              {searchQuery
-                ? `No personnel records found matching "${searchQuery}"`
-                : "No academic personnel records found in current faculty ledger."}
             </div>
           )}
         </div>

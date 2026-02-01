@@ -1,8 +1,9 @@
 package com.example.springproject.service;
 
 import com.example.springproject.model.Examtab;
-import com.example.springproject.repository.Examtabrepo;
+import java.util.List;
 
 public interface Examtabservice {
-    public Examtab saveExamtab(Examtab examtab);
+    Examtab saveExamtab(Examtab examtab);
+    List<Examtab> getAllExamtabs();
 }

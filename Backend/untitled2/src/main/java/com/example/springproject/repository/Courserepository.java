@@ -1,12 +1,13 @@
 package com.example.springproject.repository;
 
 import com.example.springproject.model.Course;
+import com.example.springproject.model.Department;
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
+import java.util.Optional;
 
 public interface Courserepository extends JpaRepository<Course, Integer> {
-
-    List<Course> findByDepartmentId(int deptId);
-    List<Course> findByCollegeId(int collegeId);
+    List<Course> findByDepartment(Department department);
+    Optional<Course> findByCode(String code);
+    boolean existsByCode(String code);
 }

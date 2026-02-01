@@ -2,11 +2,6 @@ package com.example.springproject;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.ArrayList;
 
 
 @SpringBootApplication
@@ -25,7 +20,7 @@ public class SpringprojectApplication {
                 System.err.println("\n" + "!".repeat(60));
                 System.err.println("🔴 CRITICAL: DATABASE CONNECTION REFUSED");
                 System.err.println("   The application cannot reach MySQL on port 3306.");
-                System.err.println("   Please ensure MySQL Service is RUNNING and 'examtt' DB exists.");
+                System.err.println("   Please ensure MySQL Service is RUNNING and 'examtt2' DB exists.");
                 System.err.println("!".repeat(60) + "\n");
             }
             throw e;

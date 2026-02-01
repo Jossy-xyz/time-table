@@ -1,20 +1,8 @@
 import React, { useEffect, useState, ChangeEvent } from "react";
 import { toast } from "react-toastify";
 import { FiEdit2, FiTrash2, FiSave, FiXCircle, FiSearch } from "react-icons/fi";
-
-interface Student {
-  id: string;
-  matric_No: string;
-  surname: string;
-  firstname: string;
-  middlename: string;
-  level: string;
-  gender: string;
-  programmeID: string;
-  start_Session: string;
-  programme: string;
-  deptID: string;
-}
+import { studentService } from "./services/api/studentService";
+import { Student } from "./types/institutional";
 
 interface StudentListProps {
   onStudentList?: () => void;
@@ -26,24 +14,20 @@ interface StudentListProps {
  */
 export default function StudentList({ onStudentList }: StudentListProps) {
   const [students, setStudents] = useState<Student[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
   const [editData, setEditData] = useState<Partial<Student>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchStudents = async () => {
-    const username = localStorage.getItem("username");
+    setIsLoading(true);
     try {
-      const res = await fetch(
-        `http://localhost:8080/student/get?username=${username}`,
-      );
-      if (!res.ok) {
-        toast.error("⚠️ Failed to synchronize academic registry");
-        return;
-      }
-      const data = await res.json();
-      setStudents(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error("Critical connection failure to registry");
+      const data = await studentService.getAll();
+      setStudents(data);
+    } catch (error: any) {
+      toast.error(error.message || "Critical connection failure to registry");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -57,10 +41,9 @@ export default function StudentList({ onStudentList }: StudentListProps) {
   const filteredStudents = students.filter((student) => {
     const searchStr = searchQuery.toLowerCase();
     return (
-      student.matric_No?.toLowerCase().includes(searchStr) ||
+      student.matricNo?.toLowerCase().includes(searchStr) ||
       student.surname?.toLowerCase().includes(searchStr) ||
-      student.firstname?.toLowerCase().includes(searchStr) ||
-      student.programme?.toLowerCase().includes(searchStr)
+      student.firstname?.toLowerCase().includes(searchStr)
     );
   });
 
@@ -75,48 +58,37 @@ export default function StudentList({ onStudentList }: StudentListProps) {
     setEditData({ ...student });
   };
 
-  const handleSave = async (id: string) => {
+  const handleSave = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8080/student/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editData),
-      });
-      if (res.ok) {
-        toast.success("Student record committed to registry");
-        setEditId(null);
-        fetchStudents();
-        if (onStudentList) onStudentList();
-      } else {
-        toast.error("Registry update failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during registry save");
+      await studentService.update(id, editData);
+      toast.success("Student record committed to registry");
+      setEditId(null);
+      fetchStudents();
+      if (onStudentList) onStudentList();
+    } catch (error: any) {
+      toast.error(error.message || "Registry update failed");
     }
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setEditData((prev) => ({ ...prev, [name]: value }));
+    setEditData((prev) => ({
+      ...prev,
+      [name]: name === "level" ? parseInt(value) : value,
+    }));
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (
       !window.confirm("Purge student record from academic ledger permanently?")
     )
       return;
     try {
-      const res = await fetch(`http://localhost:8080/student/delete/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Student record purged successfully");
-        fetchStudents();
-      } else {
-        toast.error("Purge operation failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during registry purge");
+      await studentService.delete(id);
+      toast.success("Student record purged successfully");
+      fetchStudents();
+    } catch (error: any) {
+      toast.error(error.message || "Purge operation failed");
     }
   };
 
@@ -130,31 +102,17 @@ export default function StudentList({ onStudentList }: StudentListProps) {
             </div>
             <input
               type="text"
-              placeholder="Search by Matric No, Name or Programme..."
+              placeholder="Search by Matric No or Name..."
               className="w-full pl-10 pr-4 py-2.5 bg-surface border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all shadow-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  // Live search already handles this, but Enter provides feedback
-                  toast.info(`Filtering for: ${searchQuery}`, {
-                    autoClose: 1000,
-                  });
-                }
-              }}
             />
           </div>
-          <button
-            className="px-6 py-2.5 bg-brick text-white rounded-institutional text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-brick-deep transition-all flex items-center gap-2 shrink-0"
-            onClick={() =>
-              toast.info(`Registry filtered by: ${searchQuery || "Show All"}`)
-            }
-          >
-            <FiSearch size={14} /> Search
-          </button>
         </div>
         <div className="text-[10px] font-black uppercase text-institutional-muted tracking-widest bg-brick/5 px-3 py-2 rounded-full border border-brick/10 inline-flex items-center self-start md:self-center">
-          Registry Ledger: {filteredStudents.length} matches
+          {isLoading
+            ? "Synchronizing..."
+            : `Registry Ledger: ${filteredStudents.length} matches`}
         </div>
       </div>
 
@@ -165,7 +123,6 @@ export default function StudentList({ onStudentList }: StudentListProps) {
             <th>Full Name</th>
             <th className="text-center">Level</th>
             <th className="text-center">Cycle</th>
-            <th>Programme</th>
             <th className="text-right">Actions</th>
           </tr>
         </thead>
@@ -179,8 +136,8 @@ export default function StudentList({ onStudentList }: StudentListProps) {
                 <>
                   <td className="px-3 py-2">
                     <input
-                      name="matric_No"
-                      value={editData.matric_No}
+                      name="matricNo"
+                      value={editData.matricNo}
                       onChange={handleInputChange}
                       className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs"
                     />
@@ -218,18 +175,10 @@ export default function StudentList({ onStudentList }: StudentListProps) {
                   </td>
                   <td className="px-3 py-2">
                     <input
-                      name="start_Session"
-                      value={editData.start_Session}
+                      name="startSession"
+                      value={editData.startSession}
                       onChange={handleInputChange}
                       className="w-24 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      name="programme"
-                      value={editData.programme}
-                      onChange={handleInputChange}
-                      className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs"
                     />
                   </td>
                   <td className="px-3 py-2 text-right space-x-2">
@@ -250,7 +199,7 @@ export default function StudentList({ onStudentList }: StudentListProps) {
               ) : (
                 <>
                   <td className="font-mono text-brick font-black tracking-tighter">
-                    {student.matric_No}
+                    {student.matricNo}
                   </td>
                   <td>
                     <div className="flex flex-col">
@@ -268,10 +217,7 @@ export default function StudentList({ onStudentList }: StudentListProps) {
                     </span>
                   </td>
                   <td className="text-center font-mono text-[10px] opacity-60 italic">
-                    {student.start_Session}
-                  </td>
-                  <td className="text-xs font-bold opacity-80 max-w-[200px] truncate">
-                    {student.programme}
+                    {student.startSession}
                   </td>
                   <td className="text-right space-x-1">
                     <button
@@ -317,7 +263,7 @@ export default function StudentList({ onStudentList }: StudentListProps) {
           </div>
         </div>
       )}
-      {filteredStudents.length === 0 && (
+      {!isLoading && filteredStudents.length === 0 && (
         <div className="py-20 text-center opacity-40 italic">
           {searchQuery
             ? `No records found matching "${searchQuery}"`

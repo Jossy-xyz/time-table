@@ -10,7 +10,7 @@ import {
   FiSettings,
   FiTrello,
 } from "react-icons/fi";
-import { useAuth } from "../../Authenticate";
+import { useAuthStore } from "../../services/state/authStore";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -22,7 +22,7 @@ interface SidebarProps {
  * Features: High-contrast markers, premium typography, and disciplined navigation categories.
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const location = useLocation();
 
   const primaryNavigation = [

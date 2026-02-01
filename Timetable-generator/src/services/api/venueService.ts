@@ -1,86 +1,53 @@
-import apiClient from "./client";
-import { handleApiError } from "../../utils/errorHandler";
+import { apiClient } from "./apiClient";
 import { Venue } from "../../types/institutional";
 
 /**
  * Institutional Venue Service
- * Features: Type-safe orchestration of physical academic assets.
+ * Synchronized with Backend VenueDto.
  */
 export const venueService = {
   getAll: async (): Promise<Venue[]> => {
-    try {
-      const response = await apiClient.get<any[]>("/venue/get");
-      return response.data.map(mapBackendToFrontend);
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
+    const response = await apiClient.get("/venue/get");
+    return response as Venue[];
   },
 
-  getById: async (id: string): Promise<Venue> => {
-    try {
-        const all = await venueService.getAll();
-        const found = all.find(v => v.id === id);
-        if(!found) throw new Error("Venue not found");
-        return found;
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
+  getById: async (id: number): Promise<Venue> => {
+    const all = await venueService.getAll();
+    const found = all.find((v) => v.id === id);
+    if (!found) throw new Error("Venue not found");
+    return found;
   },
 
-  create: async (venueData: Partial<Venue>): Promise<Venue> => {
-    try {
-      const payload = mapFrontendToBackend(venueData);
-      const response = await apiClient.post<any>("/venue/post", payload);
-      return { ...venueData, id: "temp" } as Venue;
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
-  },
-
-  update: async (id: string, venueData: Partial<Venue>): Promise<Venue> => {
-    try {
-        const payload = mapFrontendToBackend(venueData);
-      const response = await apiClient.put<any>(`/venue/update/${id}`, payload);
-      return mapBackendToFrontend(response.data);
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
-  },
-
-  delete: async (id: string): Promise<void> => {
-    try {
-      await apiClient.delete(`/venue/delete/${id}`);
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
-  },
-};
-
-const mapBackendToFrontend = (data: any): Venue => {
-    let type: Venue["type"] = "LECTURE_HALL";
-    if (data.type === 2) type = "LABORATORY";
-    if (data.type === 3) type = "OFFICE";
-
-    return {
-        id: data.id?.toString(),
-        name: data.name,
-        capacity: data.capacity,
-        type: type,
+  create: async (venueData: Partial<Venue>): Promise<void> => {
+    const payload = {
+      venueCode: venueData.venueCode,
+      name: venueData.name,
+      capacity: venueData.capacity,
+      type: venueData.type,
+      preference: venueData.preference,
+      location: venueData.location,
+      inUse: venueData.inUse,
+      centre: { id: venueData.centreId },
     };
-};
+    await apiClient.post("/venue/post", payload);
+  },
 
-const mapFrontendToBackend = (data: Partial<Venue>): any => {
-    let type = 1;
-    if (data.type === "LABORATORY") type = 2;
-    if (data.type === "OFFICE") type = 3;
-
-    return {
-        venue_Code: data.name?.substring(0, 3).toUpperCase() || "VEN",
-        name: data.name,
-        capacity: data.capacity,
-        type: type,
-        preference: 1,
-        location: "Campus",
-        college_id: 1
+  update: async (id: number, venueData: Partial<Venue>): Promise<Venue> => {
+    const payload = {
+      venueCode: venueData.venueCode,
+      name: venueData.name,
+      capacity: venueData.capacity,
+      type: venueData.type,
+      preference: venueData.preference,
+      location: venueData.location,
+      inUse: venueData.inUse,
+      centre: venueData.centreId ? { id: venueData.centreId } : undefined,
     };
+    const response = await apiClient.put(`/venue/update/${id}`, payload);
+    return response as Venue;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/venue/delete/${id}`);
+  },
 };

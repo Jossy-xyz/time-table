@@ -1,17 +1,10 @@
 import React, { useState } from "react";
-import {
-  FiCalendar,
-  FiLayers,
-  FiBook,
-  FiDownload,
-  FiInfo,
-  FiChevronRight,
-  FiActivity,
-  FiCheck,
-  FiX,
-} from "react-icons/fi";
-import { motion, AnimatePresence } from "framer-motion";
+import { FiActivity, FiCheck, FiDownload, FiInfo, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
+import { generalSettingsService } from "../services/api/generalSettingsService";
+import { constraintService } from "../services/api/constraintService";
+import { algorithmService } from "../services/api/algorithmService";
+import { GeneralSettings } from "../types/institutional";
 
 interface PeriodSlot {
   id: string;
@@ -26,70 +19,84 @@ interface PeriodSlot {
  */
 const TimetablePage: React.FC = () => {
   // Core State
-  const [session, setSession] = useState("");
-  const [semester, setSemester] = useState("First");
-  const [periodsPerDay, setPeriodsPerDay] = useState(2);
-  const [examStartDate, setExamStartDate] = useState("");
-  const [examEndDate, setExamEndDate] = useState("");
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  // Config loaded from backend (readonly here)
+  const [settings, setSettings] = useState<Partial<GeneralSettings>>({});
 
   // Interactive Grid State
   const [gridInitialized, setGridInitialized] = useState(false);
   const [periodSlots, setPeriodSlots] = useState<PeriodSlot[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Checklist State
+  const [checklist, setChecklist] = useState({
+    session: false,
+    semester: false,
+    grid: false,
+    constraints: false,
+  });
 
   const dayNames = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
-  const generateCsv = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/course/export");
-      const message = await res.text();
-      toast.info(`Institutional Export: ${message}`);
-    } catch (err) {
-      toast.error("CSV Export failure detected");
-    }
-  };
+  // Load initial settings and initialize grid
+  React.useEffect(() => {
+    const loadSettings = async () => {
+      setIsLoading(true);
+      try {
+        const [settingsData, constraintsData] = await Promise.all([
+          generalSettingsService.get(),
+          constraintService.getLatest(),
+        ]);
 
-  const initializeGrid = () => {
-    const newErrors: Record<string, boolean> = {};
-    if (!examStartDate) newErrors.examStartDate = true;
-    if (!examEndDate) newErrors.examEndDate = true;
-    if (periodsPerDay < 1) newErrors.periodsPerDay = true;
+        if (settingsData) {
+          setSettings(settingsData);
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      toast.warn("Compliance Error: Missing mandatory academic parameters");
-      return;
-    }
+          const hasSession = !!settingsData.session;
+          const hasSemester = !!settingsData.semester;
+          const hasGrid = !!(
+            settingsData.periodsPerDay && settingsData.daysPerWeek
+          );
+          const hasConstraints = !!constraintsData;
 
-    const start = new Date(examStartDate);
-    const end = new Date(examEndDate);
-    if (end < start) {
-      setErrors({ examStartDate: true, examEndDate: true });
-      toast.error(
-        "Temporal Error: Commencement date cannot exceed Termination",
-      );
-      return;
-    }
+          setChecklist({
+            session: hasSession,
+            semester: hasSemester,
+            grid: hasGrid,
+            constraints: hasConstraints,
+          });
 
-    setErrors({}); // Clear errors on success
+          // Verify critical config exists
+          if (hasGrid) {
+            initializePeriodSlots(settingsData.periodsPerDay!);
+            setGridInitialized(true);
+          } else {
+            toast.warn(
+              "Grid configuration incompele. Please visit Settings page.",
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load existing settings", error);
+        toast.error("Failed to load institutional configuration");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadSettings();
+  }, []);
 
-    // Generate all possible period slots for the week
+  const initializePeriodSlots = (periods: number) => {
     const slots: PeriodSlot[] = [];
     dayNames.forEach((day) => {
-      for (let period = 1; period <= periodsPerDay; period++) {
+      for (let period = 1; period <= periods; period++) {
         slots.push({
           id: `${day}-P${period}`,
           day,
           period,
-          selected: true, // Default: all selected
+          selected: true,
         });
       }
     });
-
     setPeriodSlots(slots);
-    setGridInitialized(true);
-    toast.success("Calendar grid initialized successfully");
   };
 
   const togglePeriodSelection = (slotId: string) => {
@@ -112,65 +119,44 @@ const TimetablePage: React.FC = () => {
     toast.info("All periods deselected");
   };
 
-  const handleMainInterface = async () => {
-    // 1. Mandatory Fields Check
-    const newErrors: Record<string, boolean> = {};
-    if (!session) newErrors.session = true;
-    if (!semester) newErrors.semester = true;
-    if (!examStartDate) newErrors.examStartDate = true;
-    if (!examEndDate) newErrors.examEndDate = true;
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      toast.warn("Verify all mandatory institutional academic fields");
-      return;
+  const generateCsv = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/course/export");
+      const message = await res.text();
+      toast.info(`Institutional Export: ${message}`);
+    } catch (err) {
+      toast.error("CSV Export failure detected");
     }
+  };
 
-    // 2. Session Format Validation (YYYY/YYYY)
-    const sessionRegex = /^\d{4}\/\d{4}$/;
-    if (!sessionRegex.test(session)) {
-      setErrors({ session: true });
-      toast.error("Format Error: Session must be YYYY/YYYY (e.g., 2024/2025)");
-      return;
-    }
-
-    // 3. Chronological Date Validation
-    const start = new Date(examStartDate);
-    const end = new Date(examEndDate);
-    if (end < start) {
-      setErrors({ examStartDate: true, examEndDate: true });
-      toast.error(
-        "Temporal Error: Termination date cannot precede Commencement",
-      );
-      return;
-    }
-
-    setErrors({});
-
+  const handleTimetableGeneration = async () => {
     const selectedSlots = periodSlots.filter((slot) => slot.selected);
     if (selectedSlots.length === 0) {
       toast.warn("Select at least one period to proceed");
       return;
     }
 
+    // Here we would typically update the "selected periods" in the backend
+    // Since our backend doesn't explicit store per-period selection in general_settings yet,
+    // we might need to assume ALL periods defined in config are valid,
+    // OR we update general_settings if we add a field for it.
+    // For now, let's treat this as the "Trigger Algorithm" button.
+
     try {
-      const res = await fetch("http://localhost:8080/main/add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session,
-          semester,
-          start_date: examStartDate,
-          end_date: examEndDate,
-          days_per_week: 7,
-          periods_per_day: periodsPerDay,
-          selected_periods: selectedSlots.map((s) => s.id),
-        }),
-      });
-      if (res.ok) toast.success("Academic master state committed to database");
-      else toast.error("Institutional state sync failed");
-    } catch (error) {
-      toast.error("Critical failure during master state commit");
+      toast.info("Initializing Timetable Generation Engine...");
+
+      const response = await algorithmService.trigger();
+
+      if (response.status === "QUEUED") {
+        toast.success(
+          "Algorithm Triggered Successfully! (Background Process Started)",
+        );
+      }
+    } catch (error: any) {
+      toast.error(
+        "Failed to trigger generation engine: " +
+          (error.message || "Server Error"),
+      );
     }
   };
 
@@ -200,162 +186,54 @@ const TimetablePage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Configuration Column */}
+        {/* Status Column */}
         <div className="lg:col-span-4 space-y-8">
           <section className="bg-surface p-6 rounded-institutional border border-brick/5 shadow-sm space-y-6">
             <div className="flex items-center gap-3 border-b border-brick/5 pb-4">
-              <FiCalendar className="text-brick text-lg" />
+              <FiInfo className="text-brick text-lg" />
               <h2 className="text-xs font-black uppercase tracking-widest text-brick">
-                Academic Framework
+                System Readiness Checklist
               </h2>
             </div>
 
             <div className="space-y-4">
-              <div className="group relative">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2 flex items-center justify-between">
-                  Academic Session
-                  <FiInfo
-                    size={12}
-                    className="text-brick/40"
-                    onMouseEnter={() => setActiveTooltip("session")}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                  />
-                </label>
-                <input
-                  type="text"
-                  placeholder="eg. 2024/2025"
-                  className={`w-full bg-page border px-4 py-3 rounded-institutional font-bold text-sm focus:ring-2 focus:ring-brick/20 outline-none transition-all ${
-                    errors.session
-                      ? "border-status-error ring-1 ring-status-error/20"
-                      : "border-brick/10"
-                  }`}
-                  value={session}
-                  onChange={(e) => {
-                    setSession(e.target.value);
-                    if (errors.session)
-                      setErrors((prev) => ({ ...prev, session: false }));
-                  }}
-                />
-                <AnimatePresence>
-                  {activeTooltip === "session" && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute z-10 top-[-35px] right-0 bg-brick text-white px-2 py-1 text-[9px] rounded font-bold"
-                    >
-                      YYYY/YYYY format
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              <div className="group">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
-                  Semester Cycle
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full bg-page border border-brick/10 px-4 py-3 rounded-institutional font-bold text-sm focus:ring-2 focus:ring-brick/20 outline-none appearance-none"
-                    value={semester}
-                    onChange={(e) => setSemester(e.target.value)}
+              {[
+                { label: "Academic Session Defined", valid: checklist.session },
+                { label: "Semester Cycle Active", valid: checklist.semester },
+                { label: "Grid Topology Configured", valid: checklist.grid },
+                {
+                  label: "Constraints Ledger Loaded",
+                  valid: checklist.constraints,
+                },
+              ].map((item, idx) => (
+                <div
+                  key={idx}
+                  className={`p-3 rounded border flex items-center justify-between ${item.valid ? "bg-status-success/5 border-status-success/10" : "bg-status-warning/5 border-status-warning/10"}`}
+                >
+                  <span
+                    className={`text-[10px] font-bold uppercase ${item.valid ? "text-institutional-primary" : "text-institutional-muted"}`}
                   >
-                    <option>First</option>
-                    <option>Second</option>
-                  </select>
-                  <FiChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-brick/40" />
+                    {item.label}
+                  </span>
+                  {item.valid ? (
+                    <FiCheck className="text-status-success" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border-2 border-status-warning/30" />
+                  )}
                 </div>
-              </div>
-            </div>
-          </section>
+              ))}
 
-          <section className="bg-surface p-6 rounded-institutional border border-brick/5 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 border-b border-brick/5 pb-4">
-              <FiLayers className="text-brick text-lg" />
-              <h2 className="text-xs font-black uppercase tracking-widest text-brick">
-                Temporal Constraints
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="input-group">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
-                  Commencement
-                </label>
-                <input
-                  type="date"
-                  className={`w-full bg-page border px-3 py-2 rounded text-xs font-bold ${
-                    errors.examStartDate
-                      ? "border-status-error ring-1 ring-status-error/20"
-                      : "border-brick/10"
-                  }`}
-                  value={examStartDate}
-                  onChange={(e) => {
-                    setExamStartDate(e.target.value);
-                    if (errors.examStartDate)
-                      setErrors((prev) => ({ ...prev, examStartDate: false }));
-                  }}
-                />
-              </div>
-              <div className="input-group">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
-                  Termination
-                </label>
-                <input
-                  type="date"
-                  className={`w-full bg-page border px-3 py-2 rounded text-xs font-bold ${
-                    errors.examEndDate
-                      ? "border-status-error ring-1 ring-status-error/20"
-                      : "border-brick/10"
-                  }`}
-                  value={examEndDate}
-                  onChange={(e) => {
-                    setExamEndDate(e.target.value);
-                    if (errors.examEndDate)
-                      setErrors((prev) => ({ ...prev, examEndDate: false }));
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="bg-surface p-6 rounded-institutional border border-brick/5 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 border-b border-brick/5 pb-4">
-              <FiBook className="text-brick text-lg" />
-              <h2 className="text-xs font-black uppercase tracking-widest text-brick">
-                Load Determinants
-              </h2>
-            </div>
-
-            <div className="input-group">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
-                Periods / Day
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={5}
-                value={periodsPerDay}
-                onChange={(e) => {
-                  setPeriodsPerDay(Number(e.target.value));
-                  if (errors.periodsPerDay)
-                    setErrors((prev) => ({ ...prev, periodsPerDay: false }));
-                }}
-                className={`w-full bg-page border px-3 py-2 rounded text-xs font-bold ${
-                  errors.periodsPerDay
-                    ? "border-status-error ring-1 ring-status-error/20"
-                    : "border-brick/10"
-                }`}
-              />
-            </div>
-
-            <div className="p-4 bg-brick/5 rounded border border-brick/10">
-              <button
-                onClick={initializeGrid}
-                className="w-full px-6 py-2.5 bg-brick text-white rounded text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-brick/20 hover:scale-105 active:scale-95 transition-all"
-              >
-                Initialize Grid
-              </button>
+              {!Object.values(checklist).every(Boolean) && !isLoading && (
+                <div className="text-center p-4 bg-brick/5 rounded border border-brick/10">
+                  <p className="text-xs text-brick font-bold mb-1">
+                    Pre-Flight Use Only
+                  </p>
+                  <p className="text-[9px] text-institutional-muted">
+                    Complete all configurations in the Settings module designed
+                    for Admin access.
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -431,26 +309,29 @@ const TimetablePage: React.FC = () => {
                   </div>
 
                   {/* Period Rows */}
-                  {Array.from({ length: periodsPerDay }, (_, periodIdx) => (
-                    <div key={periodIdx} className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-institutional-muted">
-                          Period {periodIdx + 1}
-                        </span>
-                        <div className="flex-1 h-px bg-brick/10" />
-                      </div>
-                      <div className="grid grid-cols-7 gap-3">
-                        {dayNames.map((day) => {
-                          const slot = periodSlots.find(
-                            (s) => s.day === day && s.period === periodIdx + 1,
-                          );
-                          if (!slot) return null;
+                  {Array.from(
+                    { length: settings.periodsPerDay || 0 },
+                    (_, periodIdx) => (
+                      <div key={periodIdx} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-institutional-muted">
+                            Period {periodIdx + 1}
+                          </span>
+                          <div className="flex-1 h-px bg-brick/10" />
+                        </div>
+                        <div className="grid grid-cols-7 gap-3">
+                          {dayNames.map((day) => {
+                            const slot = periodSlots.find(
+                              (s) =>
+                                s.day === day && s.period === periodIdx + 1,
+                            );
+                            if (!slot) return null;
 
-                          return (
-                            <button
-                              key={slot.id}
-                              onClick={() => togglePeriodSelection(slot.id)}
-                              className={`
+                            return (
+                              <button
+                                key={slot.id}
+                                onClick={() => togglePeriodSelection(slot.id)}
+                                className={`
                                 relative p-4 rounded-institutional border-2 transition-all duration-300 group
                                 ${
                                   slot.selected
@@ -458,10 +339,10 @@ const TimetablePage: React.FC = () => {
                                     : "bg-white text-institutional-muted border-brick/10 hover:border-brick/30 hover:bg-brick/5"
                                 }
                               `}
-                            >
-                              <div className="flex flex-col items-center gap-2">
-                                <div
-                                  className={`
+                              >
+                                <div className="flex flex-col items-center gap-2">
+                                  <div
+                                    className={`
                                   w-8 h-8 rounded-full flex items-center justify-center transition-all
                                   ${
                                     slot.selected
@@ -469,48 +350,56 @@ const TimetablePage: React.FC = () => {
                                       : "bg-brick/5 group-hover:bg-brick/10"
                                   }
                                 `}
-                                >
-                                  {slot.selected ? (
-                                    <FiCheck className="text-white" size={16} />
-                                  ) : (
-                                    <span className="text-[10px] font-black text-brick/40">
-                                      {periodIdx + 1}
-                                    </span>
-                                  )}
-                                </div>
-                                <span
-                                  className={`
+                                  >
+                                    {slot.selected ? (
+                                      <FiCheck
+                                        className="text-white"
+                                        size={16}
+                                      />
+                                    ) : (
+                                      <span className="text-[10px] font-black text-brick/40">
+                                        {periodIdx + 1}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span
+                                    className={`
                                   text-[9px] font-black uppercase tracking-widest
                                   ${slot.selected ? "text-white/80" : "text-institutional-muted"}
                                 `}
-                                >
-                                  SLOT
-                                </span>
-                              </div>
+                                  >
+                                    SLOT
+                                  </span>
+                                </div>
 
-                              {/* Hover Indicator */}
-                              <div
-                                className={`
+                                {/* Hover Indicator */}
+                                <div
+                                  className={`
                                 absolute inset-0 rounded-institutional border-2 border-gold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none
                                 ${slot.selected ? "border-gold" : "border-brick"}
-                              `}
-                              />
-                            </button>
-                          );
-                        })}
+                                `}
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ),
+                  )}
                 </div>
 
                 {/* Submit Button */}
                 <div className="pt-6 border-t border-brick/10">
                   <button
-                    onClick={handleMainInterface}
-                    disabled={selectedCount === 0}
+                    onClick={handleTimetableGeneration}
+                    disabled={
+                      !Object.values(checklist).every(Boolean) ||
+                      selectedCount === 0 ||
+                      isLoading
+                    }
                     className="w-full px-8 py-4 bg-gradient-to-br from-gold to-gold-deep text-brick-deep rounded-institutional text-xs font-black uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
-                    Commit Schedule Configuration ({selectedCount} Periods)
+                    Generate Timetable ({selectedCount} Periods Active)
                   </button>
                 </div>
               </div>

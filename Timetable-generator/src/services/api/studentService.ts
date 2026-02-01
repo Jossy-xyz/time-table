@@ -1,91 +1,65 @@
-import apiClient from "./client";
-import { handleApiError } from "../../utils/errorHandler";
+import { apiClient } from "./apiClient";
 import { Student } from "../../types/institutional";
 
 /**
  * Institutional Student Service
- * Features: Type-safe academic registry interactions.
+ * Features: Type-safe academic registry interactions synchronized with Backend DTOs.
  */
 export const studentService = {
   getAll: async (): Promise<Student[]> => {
-    try {
-      const username = localStorage.getItem("username");
-      if (!username) throw new Error("User context required");
-
-      const response = await apiClient.get<any[]>("/student/get", {
-        params: { username },
-      });
-      return response.data.map(mapBackendToFrontend);
-    } catch (error) {
-      throw handleApiError(error);
-    }
+    const response = await apiClient.get("/student/get");
+    return response as Student[];
   },
 
-  getById: async (id: string): Promise<Student> => {
-    try {
-      const all = await studentService.getAll();
-      const found = all.find((s) => s.id === id);
-      if (!found) throw new Error("Student not found");
-      return found;
-    } catch (error) {
-      throw handleApiError(error);
-    }
+  getById: async (id: number): Promise<Student> => {
+    // Note: If backend doesn't have a direct getById, we might need one or filter.
+    // For now, assume listing or a specific endpoint exists.
+    const all = await studentService.getAll();
+    const found = all.find((s) => s.id === id);
+    if (!found) throw new Error("Student not found");
+    return found;
   },
 
   create: async (studentData: Partial<Student>): Promise<Student> => {
-    try {
-      const payload = mapFrontendToBackend(studentData);
-      const response = await apiClient.post<any>("/student/post", payload);
-      return { ...studentData, id: "temp" } as Student;
-    } catch (error) {
-      throw handleApiError(error);
-    }
+    // Mapping back to the @RequestBody expectations of the backend
+    const payload = {
+      matricNo: studentData.matricNo,
+      surname: studentData.surname,
+      firstname: studentData.firstname,
+      middlename: studentData.middlename,
+      gender: studentData.gender,
+      level: studentData.level,
+      department: { id: studentData.departmentId },
+      program: { id: studentData.programId },
+    };
+    const response = await apiClient.post("/student/post", payload);
+    return response as Student;
   },
 
   update: async (
-    id: string,
+    id: number,
     studentData: Partial<Student>,
   ): Promise<Student> => {
-    try {
-      const payload = mapFrontendToBackend(studentData);
-      const response = await apiClient.put<any>(
-        `/student/update/${id}`,
-        payload,
-      );
-      return mapBackendToFrontend(response.data);
-    } catch (error) {
-      throw handleApiError(error);
-    }
+    const payload = {
+      matricNo: studentData.matricNo,
+      surname: studentData.surname,
+      firstname: studentData.firstname,
+      middlename: studentData.middlename,
+      gender: studentData.gender,
+      level: studentData.level,
+      // Pass IDs for relationships
+      department: studentData.departmentId
+        ? { id: studentData.departmentId }
+        : undefined,
+      program: studentData.programId
+        ? { id: studentData.programId }
+        : undefined,
+    };
+    const response = await apiClient.put(`/student/update/${id}`, payload);
+    return response as Student;
   },
 
-  delete: async (id: string): Promise<void> => {
-    try {
-      await apiClient.delete(`/student/delete/${id}`);
-    } catch (error) {
-      throw handleApiError(error);
-    }
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/student/delete/${id}`);
   },
-};
-
-const mapBackendToFrontend = (data: any): Student => {
-  return {
-    id: data.id?.toString(),
-    name: `${data.firstname} ${data.surname}`,
-    email: "placeholder@bells.edu.ng",
-    studentId: data.matric_No || "0000",
-    departmentId: data.deptID?.toString(),
-  };
-};
-
-const mapFrontendToBackend = (data: Partial<Student>): any => {
-  const names = data.name ? data.name.split(" ") : ["", ""];
-  return {
-    firstname: names[0],
-    surname: names.slice(1).join(" "),
-    matric_No: data.studentId,
-    deptID: parseInt(data.departmentId || "0"),
-    // Defaults
-    level: 100,
-    programID: 1,
-  };
 };

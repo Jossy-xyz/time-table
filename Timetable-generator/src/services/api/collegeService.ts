@@ -1,25 +1,24 @@
-import apiClient from "./client";
+import { apiClient } from "./apiClient";
+import { Centre } from "../../types/institutional";
 
-export interface College {
-  id: string | number;
-  name: string;
-  code: string;
-  type?: string | number;
-  encount?: string | number;
-}
+export type College = Centre;
 
 export const collegeService = {
-  getAll: async (): Promise<College[]> => {
-    const response = await apiClient.get<College[]>("/college/get");
-    return response.data;
+  getAll: async (): Promise<Centre[]> => {
+    const response = await apiClient.get("/college/get");
+    return response as Centre[];
   },
 
-  getById: async (id: string | number): Promise<College | null> => {
+  getById: async (id: number): Promise<Centre | null> => {
     try {
       const colleges = await collegeService.getAll();
-      return colleges.find((c) => String(c.id) === String(id)) || null;
+      return colleges.find((c) => c.id === id) || null;
     } catch (error) {
       return null;
     }
+  },
+
+  create: async (collegeData: Partial<Centre>): Promise<void> => {
+    await apiClient.post("/college/post", collegeData);
   },
 };

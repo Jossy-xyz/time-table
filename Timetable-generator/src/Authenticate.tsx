@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authenticatedUser: User = {
         ...data,
         username: data.username,
-        role: data.role || "ADMIN",
+        roleCode: data.roleCode || "AD",
       };
 
       setUser(authenticatedUser);

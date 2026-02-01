@@ -1,57 +1,61 @@
-import React, { useState, FormEvent } from "react";
-import { FiUserPlus } from "react-icons/fi";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { FiChevronDown } from "react-icons/fi";
-import {
-  departmentService,
-  Department,
-} from "./services/api/departmentService";
-import { programService, Program } from "./services/api/programService";
+import React, { useState, FormEvent, useEffect } from "react";
+import { FiUserPlus, FiChevronDown } from "react-icons/fi";
+import { toast } from "react-toastify";
+import { departmentService } from "./services/api/departmentService";
+import { programService } from "./services/api/programService";
+import { studentService } from "./services/api/studentService";
+import { Student, Department, Programme } from "./types/institutional";
 
 interface StudentFormProps {
   onStudentform?: (val: string) => void;
 }
 
 /**
- * Legacy Student Enrollment Form
- * Refactored for Type Safety during institutional migration.
+ * Academic Student Enrollment Form
+ * Synchronized with Backend DTOs and Scoped by Actor.
  */
 export default function StudentForm({ onStudentform }: StudentFormProps) {
-  const [matric, setMatricNo] = useState("");
-  const [surn, setSurname] = useState("");
-  const [level, setLevel] = useState("");
-  const [first, setFirstname] = useState("");
-  const [gender, setGender] = useState("");
-  const [deptid, setDeptid] = useState("");
-  const [progid, setProgrId] = useState("");
-  const [startsess, setStartSess] = useState("");
-  const [prog, setProgr] = useState("");
-  const [middlename, setMiddle] = useState("");
+  const [formData, setFormData] = useState<Partial<Student>>({
+    matricNo: "",
+    surname: "",
+    firstname: "",
+    middlename: "",
+    level: 100,
+    gender: "",
+    departmentId: undefined,
+    programId: undefined,
+    startSession: "2024/2025",
+  });
 
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [filteredPrograms, setFilteredPrograms] = useState<Program[]>([]);
+  const [programs, setPrograms] = useState<Programme[]>([]);
+  const [filteredPrograms, setFilteredPrograms] = useState<Programme[]>([]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
-      const [depts, progs] = await Promise.all([
-        departmentService.getAll(),
-        programService.getAll(),
-      ]);
-      setDepartments(depts);
-      setPrograms(progs);
-      setFilteredPrograms(progs);
+      try {
+        const [depts, progs] = await Promise.all([
+          departmentService.getAll(),
+          programService.getAll(),
+        ]);
+        setDepartments(depts);
+        setPrograms(progs);
+        setFilteredPrograms(progs);
+      } catch (error) {
+        toast.error("Failed to load institutional metadata");
+      }
     };
     fetchData();
   }, []);
 
-  const handleDeptChange = (id: string) => {
-    setDeptid(id);
+  const handleDeptChange = (id: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      departmentId: id,
+      programId: undefined,
+    }));
     if (id) {
-      setFilteredPrograms(
-        programs.filter((p) => String(p.deptID) === String(id)),
-      );
+      setFilteredPrograms(programs.filter((p) => p.departmentId === id));
     } else {
       setFilteredPrograms(programs);
     }
@@ -60,78 +64,33 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (
-      !matric ||
-      !surn ||
-      !first ||
-      !level ||
-      !gender ||
-      !startsess ||
-      !prog ||
-      !middlename
+      !formData.matricNo ||
+      !formData.surname ||
+      !formData.firstname ||
+      !formData.departmentId ||
+      !formData.programId
     ) {
       return toast.warn("Verify all mandatory academic fields");
     }
 
-    // 1. Matriculation Number Format Validation
-    const matricRegex = /^[A-Z]{3}\/[A-Z]{3}\/\d{2}\/\d{3}$/i;
-    // Example: AUL/CMP/23/074
-    if (!matricRegex.test(matric)) {
-      toast.error(
-        "Format Error: Matric No should follow institutional pattern (e.g. AUL/CMP/23/074)",
-      );
-      return;
-    }
-
-    // 2. Commencement Session Validation
-    const sessionRegex = /^\d{4}\/\d{4}$/;
-    if (!sessionRegex.test(startsess)) {
-      toast.error("Format Error: Session must be YYYY/YYYY (e.g. 2023/2024)");
-      return;
-    }
-
-    // 3. Dept Identifier Logic
-    if (isNaN(Number(deptid)) || Number(deptid) < 1) {
-      toast.error("Data Integrity Error: Invalid Departmental Identifier");
-      return;
-    }
-
     try {
-      const res = await fetch("http://localhost:8080/student/post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          matric_No: matric,
-          surname: surn,
-          firstname: first,
-          middlename: middlename,
-          level: level,
-          deptID: deptid,
-          gender: gender,
-          programmeID: progid,
-          start_Session: startsess,
-          programme: prog,
-        }),
-      });
+      await studentService.create(formData);
+      toast.success("Student enrollment committed to registry");
+      if (onStudentform) onStudentform("");
 
-      if (res.ok) {
-        toast.success("Student enrollment committed to registry");
-        if (onStudentform) onStudentform("");
-        // Reset local state for fresh entry
-        setMatricNo("");
-        setSurname("");
-        setFirstname("");
-        setMiddle("");
-        setGender("");
-        setDeptid("");
-        setProgrId("");
-        setStartSess("");
-        setProgr("");
-        setLevel("");
-      } else {
-        toast.error("Enrollment attempt failed at registry");
-      }
-    } catch (error) {
-      toast.error("Critical failure during enrollment sync");
+      setFormData({
+        matricNo: "",
+        surname: "",
+        firstname: "",
+        middlename: "",
+        level: 100,
+        gender: "",
+        departmentId: undefined,
+        programId: undefined,
+        startSession: "2024/2025",
+      });
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during enrollment sync");
     }
   };
 
@@ -153,8 +112,10 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             <input
               type="text"
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={matric}
-              onChange={(e) => setMatricNo(e.target.value)}
+              value={formData.matricNo}
+              onChange={(e) =>
+                setFormData({ ...formData, matricNo: e.target.value })
+              }
               placeholder="e.g. AUL/CMP/23/074"
               required
             />
@@ -167,8 +128,10 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             <input
               type="text"
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={surn}
-              onChange={(e) => setSurname(e.target.value)}
+              value={formData.surname}
+              onChange={(e) =>
+                setFormData({ ...formData, surname: e.target.value })
+              }
               placeholder="e.g. Johnson"
               required
             />
@@ -181,8 +144,10 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             <input
               type="text"
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={first}
-              onChange={(e) => setFirstname(e.target.value)}
+              value={formData.firstname}
+              onChange={(e) =>
+                setFormData({ ...formData, firstname: e.target.value })
+              }
               placeholder="e.g. Michael"
               required
             />
@@ -195,9 +160,10 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             <input
               type="text"
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={middlename}
-              onChange={(e) => setMiddle(e.target.value)}
-              required
+              value={formData.middlename || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, middlename: e.target.value })
+              }
             />
           </div>
 
@@ -207,11 +173,12 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             </label>
             <select
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all appearance-none"
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
+              value={formData.level}
+              onChange={(e) =>
+                setFormData({ ...formData, level: parseInt(e.target.value) })
+              }
               required
             >
-              <option value="">Select Tier</option>
               <option value="100">100 Level</option>
               <option value="200">200 Level</option>
               <option value="300">300 Level</option>
@@ -224,14 +191,18 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
               Gender Identification
             </label>
-            <input
-              type="text"
-              className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              placeholder="e.g. MALE / FEMALE"
+            <select
+              className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all appearance-none"
+              value={formData.gender}
+              onChange={(e) =>
+                setFormData({ ...formData, gender: e.target.value })
+              }
               required
-            />
+            >
+              <option value="">Select Gender</option>
+              <option value="MALE">MALE</option>
+              <option value="FEMALE">FEMALE</option>
+            </select>
           </div>
 
           <div className="input-group">
@@ -241,8 +212,8 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             <div className="relative">
               <select
                 className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all appearance-none"
-                value={deptid}
-                onChange={(e) => handleDeptChange(e.target.value)}
+                value={formData.departmentId || ""}
+                onChange={(e) => handleDeptChange(parseInt(e.target.value))}
                 required
               >
                 <option value="">Select Department</option>
@@ -265,9 +236,11 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             <input
               type="text"
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={startsess}
-              onChange={(e) => setStartSess(e.target.value)}
-              placeholder="e.g. 2023/2024"
+              value={formData.startSession}
+              onChange={(e) =>
+                setFormData({ ...formData, startSession: e.target.value })
+              }
+              placeholder="e.g. 2024/2025"
               required
             />
           </div>
@@ -279,15 +252,13 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             <div className="relative">
               <select
                 className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all appearance-none"
-                value={progid}
-                onChange={(e) => {
-                  const pId = e.target.value;
-                  setProgrId(pId);
-                  const selectedProg = programs.find(
-                    (p) => String(p.id) === String(pId),
-                  );
-                  if (selectedProg) setProgr(selectedProg.name);
-                }}
+                value={formData.programId || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    programId: parseInt(e.target.value),
+                  })
+                }
                 required
               >
                 <option value="">Select Programme</option>
@@ -313,7 +284,6 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
           </button>
         </div>
       </form>
-      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 }

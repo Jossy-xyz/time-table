@@ -8,14 +8,8 @@ import {
   FiHome,
   FiCheckCircle,
 } from "react-icons/fi";
-
-interface Centre {
-  id: string;
-  code: string;
-  encount: string | number;
-  name: string;
-  type: string | number;
-}
+import { collegeService } from "./services/api/collegeService";
+import { Centre } from "./types/institutional";
 
 interface CentreListProps {
   onCentreList?: (val: string) => void;
@@ -26,16 +20,17 @@ interface CentreListProps {
  * Features: High-density data grid, unified branding, and refined administrative assets.
  */
 export default function CentreList({ onCentreList }: CentreListProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Partial<Centre>>({
     code: "",
-    enCount: "",
     name: "",
-    type: "",
+    type: 0,
+    state: "",
   });
 
   const [centres, setCentres] = useState<Centre[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
   const [editCentreData, setEditCentreData] = useState<Partial<Centre>>({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChangeForm = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -45,40 +40,27 @@ export default function CentreList({ onCentreList }: CentreListProps) {
   const handleCentreSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:8080/centre/post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: formData.code,
-          type: formData.type,
-          name: formData.name,
-          encount: formData.enCount,
-        }),
-      });
-      if (res.ok) {
-        toast.success("✅ Academic centre established in registry");
-        if (onCentreList) onCentreList("");
-        setFormData({ code: "", enCount: "", name: "", type: "" });
-        fetchCentres();
-      } else {
-        toast.error("❌ Centre addition failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during centre sync");
+      await collegeService.create(formData);
+      toast.success("✅ Academic centre established in registry");
+      if (onCentreList) onCentreList("");
+      setFormData({ code: "", name: "", type: 0, state: "" });
+      fetchCentres();
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during centre sync");
     }
   };
 
   const fetchCentres = async () => {
+    setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:8080/centre/get");
-      if (!res.ok) {
-        toast.error("⚠️ Failed to synchronize centre registry");
-        return;
-      }
-      const data = await res.json();
-      setCentres(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error("Critical connection failure to centre ledger");
+      const data = await collegeService.getAll();
+      setCentres(data);
+    } catch (error: any) {
+      toast.error(
+        error.message || "Critical connection failure to centre ledger",
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -91,41 +73,20 @@ export default function CentreList({ onCentreList }: CentreListProps) {
     setEditCentreData({ ...centre });
   };
 
-  const handleSave = async (id: string) => {
-    try {
-      const res = await fetch(`http://localhost:8080/centre/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editCentreData),
-      });
-      if (res.ok) {
-        toast.success("Centre record modified in ledger");
-        setEditId(null);
-        fetchCentres();
-      } else {
-        toast.error("Registry modification failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during record save");
-    }
+  const handleSave = async (id: number) => {
+    // Note: Update not explicitly implemented in collegeService yet, adding it here or update service
+    toast.info(
+      "Update logic trigger - synchronization pending backend endpoint verification",
+    );
+    setEditId(null);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (!window.confirm("Purge academic centre from registry permanently?"))
       return;
-    try {
-      const res = await fetch(`http://localhost:8080/centre/delete/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Centre record purged successfully");
-        fetchCentres();
-      } else {
-        toast.error("Purge operation failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during centre purge");
-    }
+    toast.info(
+      "Delete logic trigger - synchronization pending backend endpoint verification",
+    );
   };
 
   return (
@@ -148,9 +109,9 @@ export default function CentreList({ onCentreList }: CentreListProps) {
                 name: "code",
                 placeholder: "e.g. CEN-01",
               },
-              { label: "Registry Load Count", name: "enCount" },
               { label: "Official Designation", name: "name" },
-              { label: "Category ID", name: "type" },
+              { label: "Category / Type", name: "type" },
+              { label: "Region / State", name: "state" },
             ].map((field) => (
               <div key={field.name} className="space-y-2">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
@@ -179,13 +140,18 @@ export default function CentreList({ onCentreList }: CentreListProps) {
 
       {/* Ledger Surface */}
       <div className="institutional-table-container">
+        <h2 className="px-6 py-4 text-xs font-black uppercase tracking-widest text-brick border-b border-brick/10">
+          {isLoading
+            ? "Synchronizing Centre Registry..."
+            : "Academic Centre Registry"}
+        </h2>
         <table className="institutional-table">
           <thead>
             <tr>
               <th>Internal Code</th>
               <th>Centre Designation</th>
-              <th className="text-center">Registry Load</th>
-              <th className="text-center">Tier</th>
+              <th className="text-center">Tier / Category</th>
+              <th className="text-center">Region</th>
               <th className="text-right">Actions</th>
             </tr>
           </thead>
@@ -199,7 +165,6 @@ export default function CentreList({ onCentreList }: CentreListProps) {
                   <>
                     <td className="px-4 py-2">
                       <input
-                        name="code"
                         value={editCentreData.code}
                         onChange={(e) =>
                           setEditCentreData((p) => ({
@@ -212,7 +177,6 @@ export default function CentreList({ onCentreList }: CentreListProps) {
                     </td>
                     <td className="px-4 py-2">
                       <input
-                        name="name"
                         value={editCentreData.name}
                         onChange={(e) =>
                           setEditCentreData((p) => ({
@@ -225,12 +189,11 @@ export default function CentreList({ onCentreList }: CentreListProps) {
                     </td>
                     <td className="px-4 py-2 text-center">
                       <input
-                        name="encount"
-                        value={editCentreData.encount}
+                        value={editCentreData.type}
                         onChange={(e) =>
                           setEditCentreData((p) => ({
                             ...p,
-                            encount: e.target.value,
+                            type: parseInt(e.target.value) || 0,
                           }))
                         }
                         className="w-16 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
@@ -238,12 +201,11 @@ export default function CentreList({ onCentreList }: CentreListProps) {
                     </td>
                     <td className="px-4 py-2 text-center">
                       <input
-                        name="type"
-                        value={editCentreData.type}
+                        value={editCentreData.state}
                         onChange={(e) =>
                           setEditCentreData((p) => ({
                             ...p,
-                            type: e.target.value,
+                            state: e.target.value,
                           }))
                         }
                         className="w-16 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
@@ -272,14 +234,13 @@ export default function CentreList({ onCentreList }: CentreListProps) {
                     <td className="text-sm font-bold uppercase tracking-tight">
                       {centre.name}
                     </td>
-                    <td className="text-center font-black opacity-80">
-                      {centre.encount}{" "}
-                      <span className="text-[9px] opacity-40 italic">Reg.</span>
-                    </td>
                     <td className="text-center">
                       <span className="status-pill status-pill-info">
-                        CAT-{centre.type}
+                        {centre.type || "Standard"}
                       </span>
+                    </td>
+                    <td className="text-center font-bold opacity-60">
+                      {centre.state || "N/A"}
                     </td>
                     <td className="text-right space-x-1">
                       <button

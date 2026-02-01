@@ -14,10 +14,13 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor - simplified
+// Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    // Backend doesn't use Bearer tokens, but we might pass headers if needed
+    const username = localStorage.getItem("username");
+    if (username) {
+      config.headers["X-Actor-Username"] = username;
+    }
     return config;
   },
   (error) => Promise.reject(error),

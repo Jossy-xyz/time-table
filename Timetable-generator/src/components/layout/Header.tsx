@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../Authenticate";
+import { useAuthStore } from "../../services/state/authStore";
+import { authService } from "../../services/api/authService";
 import { useTheme } from "../../context/ThemeContext";
 import {
   FiMenu,
@@ -23,13 +24,13 @@ interface HeaderProps {
  * Features: Fixed position, Brick Brown gradient, stays on top.
  */
 const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
-  const { user, logout } = useAuth();
+  const { user } = useAuthStore();
   const { theme, toggle: toggleTheme } = useTheme();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
+    authService.logout();
     navigate("/login");
   };
 
@@ -119,7 +120,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
                 >
                   <div className="p-4 border-b border-brick/10 bg-brick/5">
                     <p className="text-xs font-black uppercase tracking-widest text-brick">
-                      {user?.role || "ACCESS LEVEL: ADMIN"}
+                      {user?.roleCode === "AD"
+                        ? "ADMINISTRATOR"
+                        : user?.roleCode === "CR"
+                          ? "COLLEGE REPR"
+                          : user?.roleCode === "DR"
+                            ? "DEPT REPR"
+                            : "STAFF/USER"}
                     </p>
                     <p className="text-[10px] text-institutional-muted mt-1 uppercase">
                       ID: {user?.username || "SYSTEM"}

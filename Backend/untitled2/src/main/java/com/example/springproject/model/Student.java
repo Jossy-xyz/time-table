@@ -1,42 +1,90 @@
 package com.example.springproject.model;
 
 import jakarta.persistence.*;
+import java.util.Date;
+import java.util.List;
 
 @Entity
 @Table(name = "student")
 public class Student {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
 
-    private int Id;
-    private String matric_No;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "program_id")
+    private Program program;
+
+    @Column(name = "matric_no", unique = true, nullable = false, length = 50)
+    private String matricNo;
+
+    @Column(nullable = false, length = 255)
     private String surname;
+
+    @Column(nullable = false, length = 255)
     private String firstname;
+
+    @Column(length = 255)
     private String middlename;
+
+    @Column(length = 20)
     private String gender;
-    private int deptID;
-    private int programmeID;
-    private String start_Session;
-    private int level;
-    private String programme;
-//    @ManyToOne
-//    @JoinColumn(name = "deptID", nullable = false)
-//    private Department department;
 
-    public int getId() {
-        return Id;
+    @Column(name = "start_session", length = 20)
+    private String startSession;
+
+    @Column(columnDefinition = "INT DEFAULT 100")
+    private Integer level;
+
+    @Column(name = "programme_name", length = 255)
+    private String programmeName;
+
+    @Column(name = "created_at", updatable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdAt;
+
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
+    private List<Registration> courseRegistrations;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = new Date();
     }
 
-    public void setId(int id) {
-        Id = id;
+    public Integer getId() {
+        return id;
     }
 
-    public String getMatric_No() {
-        return matric_No;
+    public void setId(Integer id) {
+        this.id = id;
     }
 
-    public void setMatric_No(String matric_No) {
-        this.matric_No = matric_No;
+    public Department getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(Department department) {
+        this.department = department;
+    }
+
+    public Program getProgram() {
+        return program;
+    }
+
+    public void setProgram(Program program) {
+        this.program = program;
+    }
+
+    public String getMatricNo() {
+        return matricNo;
+    }
+
+    public void setMatricNo(String matricNo) {
+        this.matricNo = matricNo;
     }
 
     public String getSurname() {
@@ -71,53 +119,45 @@ public class Student {
         this.gender = gender;
     }
 
-    public int getDeptID() {
-        return deptID;
+    public String getStartSession() {
+        return startSession;
     }
 
-    public void setDeptID(int deptID) {
-        this.deptID = deptID;
+    public void setStartSession(String startSession) {
+        this.startSession = startSession;
     }
 
-    public int getProgrammeID() {
-        return programmeID;
-    }
-
-    public void setProgrammeID(int programmeID) {
-        this.programmeID = programmeID;
-    }
-
-    public String getStart_Session() {
-        return start_Session;
-    }
-
-    public void setStart_Session(String start_Session) {
-        this.start_Session = start_Session;
-    }
-
-    public int getLevel() {
+    public Integer getLevel() {
         return level;
     }
 
-    public void setLevel(int level) {
+    public void setLevel(Integer level) {
         this.level = level;
     }
 
-    public String getProgramme() {
-        return programme;
+    public String getProgrammeName() {
+        return programmeName;
     }
 
-    public void setProgramme(String programme) {
-        this.programme = programme;
+    public void setProgrammeName(String programmeName) {
+        this.programmeName = programmeName;
     }
 
-//    public Department getDepartment() {
-//        return department;
-//    }
-//
-//    public void setDepartment(Department department) {
-//        this.department = department;
-//    }
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public List<Registration> getCourseRegistrations() {
+        return courseRegistrations;
+    }
+
+    public void setCourseRegistrations(List<Registration> courseRegistrations) {
+        this.courseRegistrations = courseRegistrations;
+    }
 }
 
 

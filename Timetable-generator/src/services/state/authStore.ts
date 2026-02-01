@@ -1,51 +1,55 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { User } from "../../types/institutional";
 
 interface AuthStore {
   user: User | null;
-  token: string | null;
+  isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  login: (userData: User) => void;
+
+  // Actions
+  setAuth: (user: User) => void;
   logout: () => void;
-  setUser: (user: User | null) => void;
   setError: (error: string | null) => void;
-  clearError: () => void;
+  setLoading: (isLoading: boolean) => void;
 }
 
 /**
  * Institutional Auth Store
- * Enforces Zustand strictly for UI state only.
+ * Handles global user state and persistence.
  */
-export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  token: localStorage.getItem("auth_token"),
-  isLoading: false,
-  error: null,
-
-  login: (userData: User) => {
-    // In a real system, this would come from a server via React Query
-    // Here we maintain consistency with existing structure but with TS safety.
-    const mockToken = "institutional-access-token";
-    localStorage.setItem("auth_token", mockToken);
-    set({
-      user: userData,
-      token: mockToken,
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set) => ({
+      user: null,
+      isAuthenticated: false,
       isLoading: false,
       error: null,
-    });
-  },
 
-  logout: () => {
-    localStorage.removeItem("auth_token");
-    set({
-      user: null,
-      token: null,
-      error: null,
-    });
-  },
+      setAuth: (user: User) => {
+        set({
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        });
+      },
 
-  setUser: (user) => set({ user }),
-  setError: (error) => set({ error }),
-  clearError: () => set({ error: null }),
-}));
+      logout: () => {
+        set({
+          user: null,
+          isAuthenticated: false,
+          error: null,
+        });
+        localStorage.removeItem("auth-storage"); // Clear persistence
+      },
+
+      setLoading: (isLoading: boolean) => set({ isLoading }),
+      setError: (error: string | null) => set({ error, isLoading: false }),
+    }),
+    {
+      name: "auth-storage", // local storage key
+    },
+  ),
+);

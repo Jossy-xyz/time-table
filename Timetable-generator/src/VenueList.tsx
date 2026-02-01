@@ -8,16 +8,8 @@ import {
   FiMapPin,
   FiSearch,
 } from "react-icons/fi";
-
-interface Venue {
-  id: string;
-  venue_Code: string;
-  name: string;
-  capacity: string;
-  type: string;
-  preference: string;
-  location: string;
-}
+import { venueService } from "./services/api/venueService";
+import { Venue } from "./types/institutional";
 
 interface VenueListProps {
   onVenueList?: (val: string) => void;
@@ -28,35 +20,60 @@ interface VenueListProps {
  * Features: High-density data grid, unified branding, and refined administrative actions.
  */
 export default function VenueList({ onVenueList }: VenueListProps) {
-  const [formData, setFormData] = useState({
-    venuecode: "",
-    vname: "",
-    capacity: "",
-    vtype: "",
-    pref: "",
-    loc: "",
+  const [formData, setFormData] = useState<Partial<Venue>>({
+    venueCode: "",
+    name: "",
+    capacity: 0,
+    type: 1,
+    preference: 1,
+    location: "",
   });
 
   const [venues, setVenues] = useState<Venue[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
   const [editVenueData, setEditVenueData] = useState<Partial<Venue>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChangeForm = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChangeForm = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: ["capacity", "type", "preference"].includes(name)
+        ? parseInt(value)
+        : value,
+    }));
   };
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
+  const fetchVenues = async () => {
+    setIsLoading(true);
+    try {
+      const data = await venueService.getAll();
+      setVenues(data);
+    } catch (error: any) {
+      toast.error(
+        error.message || "Critical connection failure to venue ledger",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVenues();
+  }, []);
+
   const filteredVenues = venues.filter((venue) => {
     const searchStr = searchQuery.toLowerCase();
     return (
-      venue.venue_Code?.toLowerCase().includes(searchStr) ||
+      venue.venueCode?.toLowerCase().includes(searchStr) ||
       venue.name?.toLowerCase().includes(searchStr) ||
-      venue.location?.toLowerCase().includes(searchStr) ||
-      venue.type?.toLowerCase().includes(searchStr)
+      venue.location?.toLowerCase().includes(searchStr)
     );
   });
 
@@ -69,112 +86,55 @@ export default function VenueList({ onVenueList }: VenueListProps) {
   const handleVenueSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    // 1. Mandatory Data Verification
-    const { venuecode, vname, capacity, vtype, loc } = formData;
-    if (!venuecode || !vname || !capacity || !vtype || !loc) {
+    if (!formData.venueCode || !formData.name || !formData.capacity) {
       toast.warn("Verify all mandatory infrastructure asset fields");
       return;
     }
 
-    // 2. Capacity Quantitative Integrity
-    if (isNaN(Number(capacity)) || Number(capacity) < 1) {
-      toast.error(
-        "Data Integrity Error: Spatial capacity must be a positive integer",
-      );
-      return;
-    }
-
     try {
-      const res = await fetch("http://localhost:8080/venue/post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          venue_Code: formData.venuecode,
-          name: formData.vname,
-          capacity: formData.capacity,
-          type: formData.vtype,
-          preference: formData.pref,
-          location: formData.loc,
-        }),
+      await venueService.create(formData);
+      toast.success("✅ Venue asset record committed");
+      if (onVenueList) onVenueList("");
+      setFormData({
+        venueCode: "",
+        name: "",
+        capacity: 0,
+        type: 1,
+        preference: 1,
+        location: "",
       });
-      if (res.ok) {
-        toast.success("✅ Venue asset record committed");
-        if (onVenueList) onVenueList("");
-        setFormData({
-          venuecode: "",
-          vname: "",
-          capacity: "",
-          vtype: "",
-          pref: "",
-          loc: "",
-        });
-        fetchVenues();
-      } else {
-        toast.error("❌ Venue record commit failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during venue sync");
+      fetchVenues();
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during venue sync");
     }
   };
-
-  const fetchVenues = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/venue/get");
-      if (!res.ok) {
-        toast.error("⚠️ Failed to synchronize infrastructure registry");
-        return;
-      }
-      const data = await res.json();
-      setVenues(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error("Critical connection failure to venue ledger");
-    }
-  };
-
-  useEffect(() => {
-    fetchVenues();
-  }, []);
 
   const handleEditClick = (venue: Venue) => {
     setEditId(venue.id);
     setEditVenueData({ ...venue });
   };
 
-  const handleSave = async (id: string) => {
+  const handleSave = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8080/venue/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editVenueData),
-      });
-      if (res.ok) {
-        toast.success("Venue record modified in ledger");
-        setEditId(null);
-        fetchVenues();
-      } else {
-        toast.error("Registry modification failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during record save");
+      await venueService.update(id, editVenueData);
+      toast.success("Venue record modified in ledger");
+      setEditId(null);
+      fetchVenues();
+    } catch (error: any) {
+      toast.error("Registry modification failed");
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (
       !window.confirm("Purge venue record from infrastructure asset portfolio?")
     )
       return;
     try {
-      const res = await fetch(`http://localhost:8080/venue/delete/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Venue record purged successfully");
-        fetchVenues();
-      } else {
-        toast.error("Purge operation failed");
-      }
-    } catch (error) {
+      await venueService.delete(id);
+      toast.success("Venue record purged successfully");
+      fetchVenues();
+    } catch (error: any) {
       toast.error("Critical failure during venue purge");
     }
   };
@@ -196,14 +156,14 @@ export default function VenueList({ onVenueList }: VenueListProps) {
             {[
               {
                 label: "Venue Code",
-                name: "venuecode",
+                name: "venueCode",
                 placeholder: "e.g. HAL-101",
               },
-              { label: "Official Name", name: "vname" },
+              { label: "Official Name", name: "name" },
               { label: "Max Capacity", name: "capacity" },
-              { label: "Type ID", name: "vtype" },
-              { label: "Allocation Pref.", name: "pref" },
-              { label: "Geospatial Location", name: "loc" },
+              { label: "Type ID", name: "type" },
+              { label: "Allocation Pref.", name: "preference" },
+              { label: "Geospatial Location", name: "location" },
             ].map((field) => (
               <div key={field.name} className="space-y-2">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
@@ -240,25 +200,17 @@ export default function VenueList({ onVenueList }: VenueListProps) {
               </div>
               <input
                 type="text"
-                placeholder="Search by Code, Name, Type or Location..."
+                placeholder="Search by Code, Name, or Location..."
                 className="w-full pl-10 pr-4 py-2.5 bg-surface border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all shadow-sm"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button
-              className="px-6 py-2.5 bg-brick text-white rounded-institutional text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-brick-deep transition-all flex items-center gap-2 shrink-0"
-              onClick={() =>
-                toast.info(
-                  `Infrastructure filtered by: ${searchQuery || "All"}`,
-                )
-              }
-            >
-              <FiSearch size={14} /> Search
-            </button>
           </div>
           <div className="text-[10px] font-black uppercase text-institutional-muted tracking-widest bg-brick/5 px-3 py-2 rounded-full border border-brick/10 inline-flex items-center self-start md:self-center">
-            Portfolio: {filteredVenues.length} assets
+            {isLoading
+              ? "Synchronizing..."
+              : `Portfolio: ${filteredVenues.length} assets`}
           </div>
         </div>
 
@@ -283,12 +235,11 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                   <>
                     <td className="px-4 py-2">
                       <input
-                        name="venue_Code"
-                        value={editVenueData.venue_Code}
+                        value={editVenueData.venueCode}
                         onChange={(e) =>
                           setEditVenueData((p) => ({
                             ...p,
-                            venue_Code: e.target.value,
+                            venueCode: e.target.value,
                           }))
                         }
                         className="w-24 bg-page border border-brick/20 px-2 py-1 rounded text-xs font-bold"
@@ -296,7 +247,6 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                     </td>
                     <td className="px-4 py-2">
                       <input
-                        name="name"
                         value={editVenueData.name}
                         onChange={(e) =>
                           setEditVenueData((p) => ({
@@ -309,12 +259,11 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                     </td>
                     <td className="px-4 py-2 text-center">
                       <input
-                        name="capacity"
                         value={editVenueData.capacity}
                         onChange={(e) =>
                           setEditVenueData((p) => ({
                             ...p,
-                            capacity: e.target.value,
+                            capacity: parseInt(e.target.value),
                           }))
                         }
                         className="w-16 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
@@ -322,12 +271,11 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                     </td>
                     <td className="px-4 py-2 text-center">
                       <input
-                        name="preference"
                         value={editVenueData.preference}
                         onChange={(e) =>
                           setEditVenueData((p) => ({
                             ...p,
-                            preference: e.target.value,
+                            preference: parseInt(e.target.value),
                           }))
                         }
                         className="w-16 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
@@ -335,7 +283,6 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                     </td>
                     <td className="px-4 py-2">
                       <input
-                        name="location"
                         value={editVenueData.location}
                         onChange={(e) =>
                           setEditVenueData((p) => ({
@@ -364,7 +311,7 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                 ) : (
                   <>
                     <td className="font-mono text-brick font-black tracking-tighter">
-                      {venue.venue_Code}
+                      {venue.venueCode}
                     </td>
                     <td className="text-sm font-bold uppercase tracking-tight">
                       {venue.name}
@@ -425,13 +372,6 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                 Next
               </button>
             </div>
-          </div>
-        )}
-        {filteredVenues.length === 0 && (
-          <div className="py-20 text-center opacity-40 italic">
-            {searchQuery
-              ? `No infrastructure assets found matching "${searchQuery}"`
-              : "No institutional infrastructure assets found in current ledger section."}
           </div>
         )}
       </div>

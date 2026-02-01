@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { useAuth } from "./Authenticate";
+import { useAuthStore } from "./services/state/authStore";
 import { ThemeProvider } from "./context/ThemeContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "react-toastify";
@@ -33,137 +33,137 @@ const queryClient = new QueryClient({
  * Protected route wrapper
  */
 function ProtectedRoute({ element }: { element: React.ReactNode }) {
-  const { token } = useAuth();
-  return token ? element : <Navigate to="/login" />;
+  const { isAuthenticated } = useAuthStore();
+  return isAuthenticated ? element : <Navigate to="/login" />;
 }
 
 /**
  * Main App component with routing and providers
  */
 export default function App() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuthStore();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="colored"
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
+      <Routes>
+        {/* Public Routes */}
+        <Route
+          path="/login"
+          element={
+            isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />
+          }
         />
-        <Routes>
-          {/* Public Routes */}
-          <Route
-            path="/login"
-            element={token ? <Navigate to="/dashboard" /> : <LoginPage />}
-          />
 
-          {/* Protected Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute
-                element={
-                  <MainLayout>
-                    <DashboardPage />
-                  </MainLayout>
-                }
-              />
-            }
-          />
+        {/* Protected Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute
+              element={
+                <MainLayout>
+                  <DashboardPage />
+                </MainLayout>
+              }
+            />
+          }
+        />
 
-          <Route
-            path="/students"
-            element={
-              <ProtectedRoute
-                element={
-                  <MainLayout>
-                    <StudentsPage />
-                  </MainLayout>
-                }
-              />
-            }
-          />
+        <Route
+          path="/students"
+          element={
+            <ProtectedRoute
+              element={
+                <MainLayout>
+                  <StudentsPage />
+                </MainLayout>
+              }
+            />
+          }
+        />
 
-          <Route
-            path="/courses"
-            element={
-              <ProtectedRoute
-                element={
-                  <MainLayout>
-                    <CoursesPage />
-                  </MainLayout>
-                }
-              />
-            }
-          />
+        <Route
+          path="/courses"
+          element={
+            <ProtectedRoute
+              element={
+                <MainLayout>
+                  <CoursesPage />
+                </MainLayout>
+              }
+            />
+          }
+        />
 
-          <Route
-            path="/staff"
-            element={
-              <ProtectedRoute
-                element={
-                  <MainLayout>
-                    <StaffPage />
-                  </MainLayout>
-                }
-              />
-            }
-          />
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute
+              element={
+                <MainLayout>
+                  <StaffPage />
+                </MainLayout>
+              }
+            />
+          }
+        />
 
-          <Route
-            path="/venues"
-            element={
-              <ProtectedRoute
-                element={
-                  <MainLayout>
-                    <VenuesPage />
-                  </MainLayout>
-                }
-              />
-            }
-          />
+        <Route
+          path="/venues"
+          element={
+            <ProtectedRoute
+              element={
+                <MainLayout>
+                  <VenuesPage />
+                </MainLayout>
+              }
+            />
+          }
+        />
 
-          <Route
-            path="/timetable"
-            element={
-              <ProtectedRoute
-                element={
-                  <MainLayout>
-                    <TimetablePage />
-                  </MainLayout>
-                }
-              />
-            }
-          />
+        <Route
+          path="/timetable"
+          element={
+            <ProtectedRoute
+              element={
+                <MainLayout>
+                  <TimetablePage />
+                </MainLayout>
+              }
+            />
+          }
+        />
 
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute
-                element={
-                  <MainLayout>
-                    <SettingsPage />
-                  </MainLayout>
-                }
-              />
-            }
-          />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute
+              element={
+                <MainLayout>
+                  <SettingsPage />
+                </MainLayout>
+              }
+            />
+          }
+        />
 
-          {/* Default redirect */}
-          <Route
-            path="/"
-            element={<Navigate to={token ? "/dashboard" : "/login"} />}
-          />
-        </Routes>
-      </ThemeProvider>
+        {/* Default redirect */}
+        <Route
+          path="/"
+          element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />}
+        />
+      </Routes>
     </QueryClientProvider>
   );
 }

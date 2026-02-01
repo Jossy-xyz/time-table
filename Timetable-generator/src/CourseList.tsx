@@ -9,17 +9,8 @@ import {
   FiPlus,
   FiSearch,
 } from "react-icons/fi";
-
-interface CourseRecord {
-  id: string;
-  code: string;
-  en_Count: string | number;
-  unit: string | number;
-  title: string;
-  semester: string | number;
-  examtype: string | number;
-  offering_DeptID: string | number;
-}
+import { courseService } from "./services/api/courseService";
+import { Course } from "./types/institutional";
 
 interface CourseListProps {
   onCourseList?: (val: string) => void;
@@ -30,30 +21,52 @@ interface CourseListProps {
  * Features: High-density data grid, unified branding, and refined curriculum orchestration.
  */
 export default function CourseList({ onCourseList }: CourseListProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Partial<Course>>({
     code: "",
-    enCount: "",
-    unit: "",
     title: "",
-    semester: "",
-    examType: "",
+    unit: 0,
+    semester: 1,
+    examType: 1,
   });
 
-  const deptId = localStorage.getItem("deptId");
-  const [courses, setCourses] = useState<CourseRecord[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editCourseData, setEditCourseData] = useState<Partial<CourseRecord>>(
-    {},
-  );
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editCourseData, setEditCourseData] = useState<Partial<Course>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChangeForm = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChangeForm = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: ["unit", "semester", "examType"].includes(name)
+        ? parseInt(value)
+        : value,
+    }));
   };
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+
+  const fetchCourses = async () => {
+    setIsLoading(true);
+    try {
+      const data = await courseService.getAll();
+      setCourses(data);
+    } catch (error: any) {
+      toast.error(
+        error.message || "Critical connection failure to curriculum ledger",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCourses();
+  }, []);
 
   const filteredCourses = courses.filter((course) => {
     const searchStr = searchQuery.toLowerCase();
@@ -72,109 +85,51 @@ export default function CourseList({ onCourseList }: CourseListProps) {
   const handleCourseSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    // 1. Structural Validation
-    const { code, title, enCount, unit, semester, examType } = formData;
-    if (!code || !title || !enCount || !unit || !semester || !examType) {
+    if (!formData.code || !formData.title) {
       toast.warn("Verify all mandatory curriculum fields");
       return;
     }
 
-    // 2. Course Code Pattern (e.g. CSC 401)
     const codeRegex = /^[A-Z]{3,4}\s?\d{3}$/;
-    if (!codeRegex.test(code.toUpperCase())) {
+    if (!codeRegex.test(formData.code.toUpperCase())) {
       toast.error("Format Error: Course code invalid (e.g. CSC 401)");
       return;
     }
 
-    // 3. Quantitative Integrity
-    if (isNaN(Number(unit)) || Number(unit) < 0) {
-      toast.error("Data Error: Unit weight must be a positive integer");
-      return;
-    }
-
-    if (isNaN(Number(enCount)) || Number(enCount) < 0) {
-      toast.error("Data Error: Enrollment count must be a positive integer");
-      return;
-    }
-
     try {
-      const res = await fetch("http://localhost:8080/course/done", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          en_Count: formData.enCount,
-          unit: formData.unit,
-          examtype: formData.examType,
-          departmentId: deptId,
-        }),
+      await courseService.create(formData);
+      toast.success("✅ Curriculum record committed to registry");
+      if (onCourseList) onCourseList("");
+      setFormData({
+        code: "",
+        title: "",
+        unit: 0,
+        semester: 1,
+        examType: 1,
       });
-      if (res.ok) {
-        toast.success("✅ Curriculum record committed to registry");
-        if (onCourseList) onCourseList("");
-        setFormData({
-          code: "",
-          enCount: "",
-          unit: "",
-          title: "",
-          semester: "",
-          examType: "",
-        });
-        fetchCourses();
-      } else {
-        toast.error("❌ Curriculum record commit failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during curriculum sync");
+      fetchCourses();
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during curriculum sync");
     }
   };
 
-  const fetchCourses = async () => {
-    const username = localStorage.getItem("username");
-    try {
-      const res = await fetch(
-        `http://localhost:8080/course/get?username=${username}`,
-      );
-      if (!res.ok) {
-        toast.error("⚠️ Failed to synchronize curriculum registry");
-        return;
-      }
-      const data = await res.json();
-      setCourses(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error("Critical connection failure to curriculum ledger");
-    }
-  };
-
-  useEffect(() => {
-    fetchCourses();
-  }, []);
-
-  const handleEditClick = (course: CourseRecord) => {
+  const handleEditClick = (course: Course) => {
     setEditId(course.id);
     setEditCourseData({ ...course });
   };
 
-  const handleSave = async (id: string) => {
+  const handleSave = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8080/course/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editCourseData),
-      });
-      if (res.ok) {
-        toast.success("Curriculum record modified in ledger");
-        setEditId(null);
-        fetchCourses();
-      } else {
-        toast.error("Registry modification failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during record save");
+      await courseService.update(id, editCourseData);
+      toast.success("Curriculum record modified in ledger");
+      setEditId(null);
+      fetchCourses();
+    } catch (error: any) {
+      toast.error(error.message || "Registry modification failed");
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (
       !window.confirm(
         "Purge curriculum record from academic ledger permanently?",
@@ -182,17 +137,11 @@ export default function CourseList({ onCourseList }: CourseListProps) {
     )
       return;
     try {
-      const res = await fetch(`http://localhost:8080/course/delete/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Curriculum record purged successfully");
-        fetchCourses();
-      } else {
-        toast.error("Purge operation failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during record purge");
+      await courseService.delete(id);
+      toast.success("Curriculum record purged successfully");
+      fetchCourses();
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during record purge");
     }
   };
 
@@ -218,7 +167,6 @@ export default function CourseList({ onCourseList }: CourseListProps) {
               },
               { label: "Official Title", name: "title" },
               { label: "Unit Weight", name: "unit" },
-              { label: "Enrollment Count", name: "enCount" },
               { label: "Semester Cycle", name: "semester" },
               { label: "Exam Category ID", name: "examType" },
             ].map((field) => (
@@ -263,17 +211,11 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button
-              className="px-6 py-2.5 bg-brick text-white rounded-institutional text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-brick-deep transition-all flex items-center gap-2 shrink-0"
-              onClick={() =>
-                toast.info(`Curriculum filtered by: ${searchQuery || "All"}`)
-              }
-            >
-              <FiSearch size={14} /> Search
-            </button>
           </div>
           <div className="text-[10px] font-black uppercase text-institutional-muted tracking-widest bg-brick/5 px-3 py-2 rounded-full border border-brick/10 inline-flex items-center self-start md:self-center">
-            Registry: {filteredCourses.length} assets
+            {isLoading
+              ? "Synchronizing..."
+              : `Registry: ${filteredCourses.length} assets`}
           </div>
         </div>
 
@@ -283,9 +225,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
               <th>Internal Code</th>
               <th>Course Title</th>
               <th className="text-center">Units</th>
-              <th className="text-center">Enrollment</th>
               <th className="text-center">Cycle</th>
-              <th>Category</th>
               <th className="text-right">Actions</th>
             </tr>
           </thead>
@@ -327,22 +267,10 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                         onChange={(e) =>
                           setEditCourseData((p) => ({
                             ...p,
-                            unit: e.target.value,
+                            unit: parseInt(e.target.value),
                           }))
                         }
                         className="w-12 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
-                      />
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      <input
-                        value={editCourseData.en_Count}
-                        onChange={(e) =>
-                          setEditCourseData((p) => ({
-                            ...p,
-                            en_Count: e.target.value,
-                          }))
-                        }
-                        className="w-16 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
                       />
                     </td>
                     <td className="px-4 py-2 text-center">
@@ -351,22 +279,10 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                         onChange={(e) =>
                           setEditCourseData((p) => ({
                             ...p,
-                            semester: e.target.value,
+                            semester: parseInt(e.target.value),
                           }))
                         }
                         className="w-12 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <input
-                        value={editCourseData.examtype}
-                        onChange={(e) =>
-                          setEditCourseData((p) => ({
-                            ...p,
-                            examtype: e.target.value,
-                          }))
-                        }
-                        className="w-20 bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
                       />
                     </td>
                     <td className="px-4 py-2 text-right space-x-2">
@@ -396,17 +312,9 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                       {course.unit}{" "}
                       <span className="text-[9px] opacity-40">U</span>
                     </td>
-                    <td className="text-center font-mono text-[10px] font-black">
-                      {course.en_Count} <span className="opacity-30">ENR</span>
-                    </td>
                     <td className="text-center">
                       <span className="status-pill status-pill-info">
                         S{course.semester}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-[10px] font-black uppercase text-institutional-muted tracking-widest opacity-60">
-                        TYP-{course.examtype}
                       </span>
                     </td>
                     <td className="text-right space-x-1">
@@ -453,13 +361,6 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                 Next
               </button>
             </div>
-          </div>
-        )}
-        {filteredCourses.length === 0 && (
-          <div className="py-20 text-center opacity-40 italic">
-            {searchQuery
-              ? `No curriculum assets found matching "${searchQuery}"`
-              : "No institutional curriculum assets found in current registry."}
           </div>
         )}
       </div>

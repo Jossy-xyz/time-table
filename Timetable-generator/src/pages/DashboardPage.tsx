@@ -1,17 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../Authenticate";
+import { useAuth } from "../hooks/useAuth";
 import {
   FiUsers,
   FiBookOpen,
   FiMapPin,
   FiActivity,
-  FiCalendar,
   FiArrowRight,
   FiCheckCircle,
   FiAlertCircle,
   FiInfo,
-  FiTrello,
 } from "react-icons/fi";
 import { StatCard } from "../components/molecules/StatCard";
 import {
@@ -39,7 +37,7 @@ const DashboardPage: React.FC = () => {
     statusOk: true,
   });
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     const username = user?.username || "admin";
     const endpoints = [
       {
@@ -94,14 +92,14 @@ const DashboardPage: React.FC = () => {
       console.error("Dashboard full sync failure:", err);
       setCounts((prev) => ({ ...prev, status: "Offline", statusOk: false }));
     }
-  };
+  }, [user?.username]);
 
   React.useEffect(() => {
     fetchDashboardData();
     // Refresh every 30s to keep health status accurate
     const interval = setInterval(fetchDashboardData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchDashboardData]);
 
   const stats = [
     {
@@ -170,14 +168,6 @@ const DashboardPage: React.FC = () => {
     },
   ];
 
-  const shortcuts = [
-    { label: "Academic Students", to: "/students", icon: <FiUsers /> },
-    { label: "Personnel Ledger", to: "/staff", icon: <FiActivity /> },
-    { label: "Physical Venues", to: "/venues", icon: <FiMapPin /> },
-    { label: "Curriculum Repository", to: "/courses", icon: <FiBookOpen /> },
-    { label: "System Calibration", to: "/settings", icon: <FiCalendar /> },
-  ];
-
   return (
     <>
       {/* Unified Institutional Sticky Header */}
@@ -196,7 +186,7 @@ const DashboardPage: React.FC = () => {
             </span>
           </h1>
           <p className="text-[11px] text-institutional-secondary font-medium tracking-tight opacity-70">
-            Institutional Registry session for {user?.role || "SYSTEM"}
+            Institutional Registry session for {user?.roleCode || "SYSTEM"}
           </p>
         </div>
 

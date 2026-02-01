@@ -1,80 +1,67 @@
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
-interface StudentSemReg {
-  id: string;
-  matric_NO: string;
-  course_Code_List: string;
-  session: string;
-  semester: string | number;
-}
+import { toast } from "react-toastify";
+import { studentSemRegService } from "./services/api/studentSemRegService";
+import { StudentSemesterRegistration } from "./types/institutional";
 
 interface StudentsemregListProps {
   onStudentsemregList?: (val: string) => void;
 }
 
 /**
- * Legacy Semester Enrollment View
- * Refactored for Type Safety during institutional migration.
+ * Semester Enrollment View
+ * Refactored for Type Safety utilizing StudentSemesterRegistration.
  */
 export default function StudentsemregList({
   onStudentsemregList,
 }: StudentsemregListProps) {
-  // Post State
-  const [matric, setMatric] = useState("");
-  const [course, setCourse] = useState("");
-  const [session, setSession] = useState("");
-  const [semester, setSemester] = useState("");
+  // Form State
+  const [formData, setFormData] = useState<
+    Partial<StudentSemesterRegistration>
+  >({
+    matric_NO: "",
+    course_Code_List: "",
+    session: "2024/2025",
+    semester: 1,
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [regs, setRegs] = useState<StudentSemesterRegistration[]>([]);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editRegData, setEditRegData] = useState<
+    Partial<StudentSemesterRegistration>
+  >({});
 
   const handleStudentSemSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     try {
-      const res = await fetch("http://localhost:8080/sem/reg", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          matric_No: matric,
-          course_Code_List: course, // Expecting comma-separated list
-          session: session,
-          semester: semester,
-        }),
+      await studentSemRegService.create(formData);
+      toast.success("✅ Semester registration committed to registry");
+      if (onStudentsemregList) onStudentsemregList("");
+      // Reset form
+      setFormData({
+        matric_NO: "",
+        course_Code_List: "",
+        session: "2024/2025",
+        semester: 1,
       });
-
-      if (res.ok) {
-        toast.success("✅ Semester registration committed to registry");
-        if (onStudentsemregList) onStudentsemregList("");
-        // Reset form
-        setMatric("");
-        setCourse("");
-        setSession("");
-        setSemester("");
-        fetchStudentSemReg();
-      } else {
-        toast.error("❌ Semester registration failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during registration sync");
+      fetchStudentSemReg();
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during registration sync");
     }
   };
 
-  // List State
-  const [regs, setRegs] = useState<StudentSemReg[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editRegData, setEditRegData] = useState<Partial<StudentSemReg>>({});
-
   const fetchStudentSemReg = async () => {
+    setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:8080/sem/get");
-      if (!res.ok) {
-        toast.error("⚠️ Failed to synchronize semester registry");
-        return;
-      }
-      const data = await res.json();
-      setRegs(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error("Critical connection failure to registration ledger");
+      const data = await studentSemRegService.getAll();
+      setRegs(data);
+    } catch (error: any) {
+      toast.error(
+        error.message || "Critical connection failure to registration ledger",
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -82,32 +69,19 @@ export default function StudentsemregList({
     fetchStudentSemReg();
   }, []);
 
-  const handleEditClick = (reg: StudentSemReg) => {
+  const handleEditClick = (reg: StudentSemesterRegistration) => {
     setEditId(reg.id);
-    setEditRegData({
-      matric_NO: reg.matric_NO,
-      course_Code_List: reg.course_Code_List,
-      session: reg.session,
-      semester: reg.semester,
-    });
+    setEditRegData({ ...reg });
   };
 
-  const handleSave = async (id: string) => {
+  const handleSave = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8080/sem/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editRegData),
-      });
-      if (res.ok) {
-        toast.success("Semester registration modified in ledger");
-        setEditId(null);
-        fetchStudentSemReg();
-      } else {
-        toast.error("Registry modification failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during record save");
+      await studentSemRegService.update(id, editRegData);
+      toast.success("Semester registration modified in ledger");
+      setEditId(null);
+      fetchStudentSemReg();
+    } catch (error: any) {
+      toast.error(error.message || "Registry modification failed");
     }
   };
 
@@ -115,29 +89,19 @@ export default function StudentsemregList({
     const { name, value } = e.target;
     setEditRegData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === "semester" ? parseInt(value) : value,
     }));
   };
 
-  const handleCancel = () => {
-    setEditId(null);
-  };
-
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (!window.confirm("Purge semester registration record permanently?"))
       return;
     try {
-      const res = await fetch(`http://localhost:8080/sem/delete/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Registration record purged successfully");
-        fetchStudentSemReg();
-      } else {
-        toast.error("Purge operation failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during record purge");
+      await studentSemRegService.delete(id);
+      toast.success("Registration record purged successfully");
+      fetchStudentSemReg();
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during record purge");
     }
   };
 
@@ -158,8 +122,10 @@ export default function StudentsemregList({
             <input
               type="text"
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={matric}
-              onChange={(e) => setMatric(e.target.value)}
+              value={formData.matric_NO}
+              onChange={(e) =>
+                setFormData({ ...formData, matric_NO: e.target.value })
+              }
             />
           </div>
           <div className="input-group lg:col-span-2">
@@ -169,8 +135,10 @@ export default function StudentsemregList({
             <input
               type="text"
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={session}
-              onChange={(e) => setSession(e.target.value)}
+              value={formData.session}
+              onChange={(e) =>
+                setFormData({ ...formData, session: e.target.value })
+              }
               placeholder="e.g. 2024/2025"
             />
           </div>
@@ -181,8 +149,10 @@ export default function StudentsemregList({
             <input
               type="number"
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={semester}
-              onChange={(e) => setSemester(e.target.value)}
+              value={formData.semester}
+              onChange={(e) =>
+                setFormData({ ...formData, semester: parseInt(e.target.value) })
+              }
             />
           </div>
           <div className="input-group lg:col-span-4">
@@ -192,9 +162,11 @@ export default function StudentsemregList({
             <input
               type="text"
               className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={course}
-              onChange={(e) => setCourse(e.target.value)}
-              placeholder="e.g. CSC101, MTH101, GST102"
+              value={formData.course_Code_List}
+              onChange={(e) =>
+                setFormData({ ...formData, course_Code_List: e.target.value })
+              }
+              placeholder="e.g. CSC 101, MTH 101"
             />
           </div>
         </div>
@@ -210,14 +182,14 @@ export default function StudentsemregList({
 
       <div className="student-list overflow-hidden">
         <h2 className="text-xl font-black text-brick uppercase tracking-widest mb-6">
-          Semester Enrollment Ledger
+          {isLoading ? "Synchronizing..." : "Semester Enrollment Ledger"}
         </h2>
         <div className="overflow-x-auto bg-surface border border-brick/10 rounded-institutional shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-brick/5 text-[10px] font-black uppercase tracking-widest text-institutional-muted border-b border-brick/10">
-                <th className="px-5 py-4">Matric NO</th>
-                <th className="px-5 py-4">Course Inventory</th>
+                <th className="px-5 py-4">Student ID</th>
+                <th className="px-5 py-4">Level</th>
                 <th className="px-5 py-4">Session</th>
                 <th className="px-5 py-4 text-center">Cycle</th>
                 <th className="px-5 py-4 text-right">Actions</th>
@@ -228,20 +200,13 @@ export default function StudentsemregList({
                 <tr key={reg.id} className="hover:bg-brick/5 transition-colors">
                   {editId === reg.id ? (
                     <>
+                      <td className="px-5 py-3 opacity-60">{reg.studentId}</td>
                       <td className="px-5 py-3">
                         <input
-                          name="matric_NO"
-                          value={editRegData.matric_NO}
+                          name="level"
+                          value={editRegData.level}
                           onChange={handleInputChange}
-                          className="w-full bg-page border border-brick/10 px-2 py-1 rounded"
-                        />
-                      </td>
-                      <td className="px-5 py-3">
-                        <input
-                          name="course_Code_List"
-                          value={editRegData.course_Code_List}
-                          onChange={handleInputChange}
-                          className="w-full bg-page border border-brick/10 px-2 py-1 rounded"
+                          className="w-16 bg-page border border-brick/10 px-2 py-1 rounded"
                         />
                       </td>
                       <td className="px-5 py-3">
@@ -268,7 +233,7 @@ export default function StudentsemregList({
                           Commit
                         </button>
                         <button
-                          onClick={handleCancel}
+                          onClick={() => setEditId(null)}
                           className="text-institutional-muted hover:underline"
                         >
                           Abort
@@ -277,12 +242,11 @@ export default function StudentsemregList({
                     </>
                   ) : (
                     <>
-                      <td className="px-5 py-3 font-bold text-brick">
-                        {reg.matric_NO}
+                      <td className="px-5 py-3 font-mono text-brick">
+                        {/* Assuming matricNo not available on getAll dto, using StudentID */}
+                        STU-{reg.studentId}
                       </td>
-                      <td className="px-5 py-3 opacity-80 max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
-                        {reg.course_Code_List}
-                      </td>
+                      <td className="px-5 py-3 font-bold">{reg.level}L</td>
                       <td className="px-5 py-3 font-mono">{reg.session}</td>
                       <td className="px-5 py-3 text-center opacity-60">
                         S{reg.semester}
@@ -309,7 +273,6 @@ export default function StudentsemregList({
           </table>
         </div>
       </div>
-      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 }

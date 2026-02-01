@@ -5,7 +5,6 @@ import "./App.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { BrowserRouter } from "react-router-dom";
-import { AuthProvider } from "./Authenticate";
 import { ThemeProvider } from "./context/ThemeContext";
 
 const rootElement = document.getElementById("root");
@@ -16,9 +15,7 @@ root.render(
   <React.StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        <App />
       </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>,

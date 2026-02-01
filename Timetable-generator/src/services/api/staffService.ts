@@ -1,89 +1,61 @@
-import apiClient from "./client";
-import { handleApiError } from "../../utils/errorHandler";
-import { StaffMember } from "../../types/institutional";
+import { apiClient } from "./apiClient";
+import { Staff } from "../../types/institutional";
 
 /**
  * Institutional Staff Service
- * Features: Type-safe orchestration of academic personnel records.
+ * Synchronized with Backend StaffDto and Actor scoper.
  */
 export const staffService = {
-  getAll: async (): Promise<StaffMember[]> => {
-    try {
-      const username = localStorage.getItem("username");
-      if (!username) throw new Error("User context required");
-      const response = await apiClient.get<any[]>("/staff/get", {
-        params: { username },
-      });
-      return response.data.map(mapBackendToFrontend);
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
+  getAll: async (): Promise<Staff[]> => {
+    const response = await apiClient.get("/staff/get");
+    return response as Staff[];
   },
 
-  getById: async (id: string): Promise<StaffMember> => {
-    try {
-      const all = await staffService.getAll();
-      const found = all.find((s) => s.id === id);
-      if (!found) throw new Error("Staff not found");
-      return found;
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
+  getById: async (id: number): Promise<Staff> => {
+    const all = await staffService.getAll();
+    const found = all.find((s) => s.id === id);
+    if (!found) throw new Error("Staff not found");
+    return found;
   },
 
-  create: async (staffData: Partial<StaffMember>): Promise<StaffMember> => {
-    try {
-      const payload = mapFrontendToBackend(staffData);
-      const response = await apiClient.post<any>("/staff/post", payload);
-      return { ...staffData, id: "temp" } as StaffMember;
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
+  create: async (staffData: Partial<Staff>): Promise<void> => {
+    const payload = {
+      staffId: staffData.staffId,
+      title: staffData.title,
+      surname: staffData.surname,
+      firstname: staffData.firstname,
+      middlename: staffData.middlename,
+      statusId: staffData.statusId,
+      type: staffData.type,
+      specialization: staffData.specialization,
+      researchArea: staffData.researchArea,
+      department: staffData.departmentId
+        ? { id: staffData.departmentId }
+        : undefined,
+    };
+    await apiClient.post("/staff/post", payload);
   },
 
-  update: async (
-    id: string,
-    staffData: Partial<StaffMember>,
-  ): Promise<StaffMember> => {
-    try {
-      const payload = mapFrontendToBackend(staffData);
-      const response = await apiClient.put<any>(`/staff/update/${id}`, payload);
-      return mapBackendToFrontend(response.data);
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
+  update: async (id: number, staffData: Partial<Staff>): Promise<Staff> => {
+    const payload = {
+      staffId: staffData.staffId,
+      title: staffData.title,
+      surname: staffData.surname,
+      firstname: staffData.firstname,
+      middlename: staffData.middlename,
+      statusId: staffData.statusId,
+      type: staffData.type,
+      specialization: staffData.specialization,
+      researchArea: staffData.researchArea,
+      department: staffData.departmentId
+        ? { id: staffData.departmentId }
+        : undefined,
+    };
+    const response = await apiClient.put(`/staff/update/${id}`, payload);
+    return response as Staff;
   },
 
-  delete: async (id: string): Promise<void> => {
-    try {
-      await apiClient.delete(`/staff/delete/${id}`);
-    } catch (error: any) {
-      throw handleApiError(error);
-    }
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/staff/delete/${id}`);
   },
-};
-
-const mapBackendToFrontend = (data: any): StaffMember => {
-  return {
-    id: data.id?.toString(),
-    name: `${data.firstname} ${data.surname}`,
-    email: "placeholder@bells.edu.ng", // Backend missing email
-    staffId: data.staff_id?.toString(),
-    role: "LECTURER", // Defaulting as backend uses int types
-    departmentId: data.deptid?.toString(),
-  };
-};
-
-const mapFrontendToBackend = (data: Partial<StaffMember>): any => {
-  const names = data.name ? data.name.split(" ") : ["", ""];
-  return {
-    firstname: names[0],
-    surname: names.slice(1).join(" "),
-    staff_id: parseInt(data.staffId || "0"),
-    deptid: parseInt(data.departmentId || "0"),
-    // Defaults
-    type: 1,
-    in_use: 1,
-    duty_count: 0,
-  };
 };

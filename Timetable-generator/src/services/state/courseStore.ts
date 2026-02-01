@@ -8,8 +8,8 @@ interface CourseStore {
   error: string | null;
   fetchCourses: () => Promise<void>;
   addCourse: (courseData: Partial<Course>) => Promise<Course>;
-  updateCourse: (id: string, courseData: Partial<Course>) => Promise<Course>;
-  deleteCourse: (id: string) => Promise<void>;
+  updateCourse: (id: number, courseData: Partial<Course>) => Promise<Course>;
+  deleteCourse: (id: number) => Promise<void>;
   setError: (error: string | null) => void;
   clearError: () => void;
 }
@@ -48,7 +48,7 @@ export const useCourseStore = create<CourseStore>((set) => ({
     }
   },
 
-  updateCourse: async (id: string, courseData: Partial<Course>) => {
+  updateCourse: async (id: number, courseData: Partial<Course>) => {
     set({ isLoading: true, error: null });
     try {
       const updated = await courseService.update(id, courseData);
@@ -63,7 +63,7 @@ export const useCourseStore = create<CourseStore>((set) => ({
     }
   },
 
-  deleteCourse: async (id: string) => {
+  deleteCourse: async (id: number) => {
     set({ isLoading: true, error: null });
     try {
       await courseService.delete(id);

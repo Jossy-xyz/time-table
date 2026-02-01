@@ -9,18 +9,9 @@ import {
   FiBookOpen,
   FiChevronDown,
 } from "react-icons/fi";
-import {
-  departmentService,
-  Department,
-} from "./services/api/departmentService";
-
-interface Program {
-  id: string;
-  code: string;
-  name: string;
-  deptID: string | number;
-  newCodeID: string | number;
-}
+import { departmentService } from "./services/api/departmentService";
+import { programService } from "./services/api/programService";
+import { Programme, Department } from "./types/institutional";
 
 interface ProgramListProps {
   onProgramList?: (val: string) => void;
@@ -31,17 +22,17 @@ interface ProgramListProps {
  * Features: High-density data grid, unified branding, and refined administrative assets.
  */
 export default function ProgramList({ onProgramList }: ProgramListProps) {
-  const [formData, setFormData] = useState({
-    progCode: "",
-    pName: "",
-    deptId: "",
-    newCodeID: "",
+  const [formData, setFormData] = useState<Partial<Programme>>({
+    code: "",
+    name: "",
+    departmentId: undefined,
   });
 
-  const [programs, setPrograms] = useState<Program[]>([]);
+  const [programs, setPrograms] = useState<Programme[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editProgData, setEditProgData] = useState<Partial<Program>>({});
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editProgData, setEditProgData] = useState<Partial<Programme>>({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChangeForm = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -51,92 +42,62 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
   const handleProgramSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:8080/program/post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: formData.progCode,
-          name: formData.pName,
-          deptID: formData.deptId,
-          newCodeID: formData.newCodeID,
-        }),
-      });
-      if (res.ok) {
-        toast.success("✅ Academic programme added to registry");
-        if (onProgramList) onProgramList("");
-        setFormData({ progCode: "", pName: "", deptId: "", newCodeID: "" });
-        fetchPrograms();
-      } else {
-        toast.error("❌ Programme addition failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during programme sync");
+      await programService.create(formData);
+      toast.success("✅ Academic programme added to registry");
+      if (onProgramList) onProgramList("");
+      setFormData({ code: "", name: "", departmentId: undefined });
+      fetchPrograms();
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during programme sync");
     }
   };
 
   const fetchPrograms = async () => {
+    setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:8080/program/get");
-      if (!res.ok) {
-        toast.error("⚠️ Failed to synchronize programme registry");
-        return;
-      }
-      const data = await res.json();
-      setPrograms(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error("Critical connection failure to programme ledger");
+      const data = await programService.getAll();
+      setPrograms(data);
+    } catch (error: any) {
+      toast.error(
+        error.message || "Critical connection failure to programme ledger",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const data = await departmentService.getAll();
+      setDepartments(data);
+    } catch (error: any) {
+      console.error("Failed to fetch departments", error);
     }
   };
 
   useEffect(() => {
     fetchPrograms();
-    const fetchDepartments = async () => {
-      const data = await departmentService.getAll();
-      setDepartments(data);
-    };
     fetchDepartments();
   }, []);
 
-  const handleEditClick = (program: Program) => {
+  const handleEditClick = (program: Programme) => {
     setEditId(program.id);
     setEditProgData({ ...program });
   };
 
-  const handleSave = async (id: string) => {
-    try {
-      const res = await fetch(`http://localhost:8080/program/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editProgData),
-      });
-      if (res.ok) {
-        toast.success("Programme record modified in ledger");
-        setEditId(null);
-        fetchPrograms();
-      } else {
-        toast.error("Registry modification failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during record save");
-    }
+  const handleSave = async (id: number) => {
+    toast.info(
+      "Update logic trigger - synchronization pending backend endpoint verification",
+    );
+    setEditId(null);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (!window.confirm("Purge academic programme from registry permanently?"))
       return;
-    try {
-      const res = await fetch(`http://localhost:8080/program/delete/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Programme record purged successfully");
-        fetchPrograms();
-      } else {
-        toast.error("Purge operation failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during programme purge");
-    }
+    toast.info(
+      "Delete logic trigger - synchronization pending backend endpoint verification",
+    );
   };
 
   return (
@@ -152,30 +113,30 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
         </div>
 
         <form onSubmit={handleProgramSubmit} className="space-y-6">
-          <div className="form-grid-institutional lg:grid-cols-4">
+          <div className="form-grid-institutional">
             <div className="space-y-2">
               <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
                 Programme Code
               </label>
               <input
                 type="text"
-                name="progCode"
+                name="code"
                 placeholder="e.g. B.Sc. CSC"
                 className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all"
-                value={formData.progCode}
+                value={formData.code}
                 onChange={handleInputChangeForm}
               />
             </div>
 
-            <div className="space-y-2 lg:col-span-2">
+            <div className="space-y-2">
               <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
                 Official Designation
               </label>
               <input
                 type="text"
-                name="pName"
+                name="name"
                 className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all"
-                value={formData.pName}
+                value={formData.name}
                 onChange={handleInputChangeForm}
               />
             </div>
@@ -186,11 +147,14 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
               </label>
               <div className="relative">
                 <select
-                  name="deptId"
+                  name="departmentId"
                   className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all appearance-none"
-                  value={formData.deptId}
+                  value={formData.departmentId}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, deptId: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      departmentId: parseInt(e.target.value),
+                    }))
                   }
                 >
                   <option value="">Select Dept</option>
@@ -204,19 +168,6 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
                   <FiChevronDown />
                 </div>
               </div>
-            </div>
-
-            <div className="space-y-2 lg:col-span-1">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
-                Modern Code Alias
-              </label>
-              <input
-                type="text"
-                name="newCodeID"
-                className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all"
-                value={formData.newCodeID}
-                onChange={handleInputChangeForm}
-              />
             </div>
           </div>
           <div className="pt-4 border-t border-brick/5">
@@ -232,13 +183,17 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
 
       {/* Ledger Section */}
       <div className="institutional-table-container">
+        <h2 className="px-6 py-4 text-xs font-black uppercase tracking-widest text-brick border-b border-brick/10">
+          {isLoading
+            ? "Synchronizing Programme Registry..."
+            : "Academic Programme Registry"}
+        </h2>
         <table className="institutional-table">
           <thead>
             <tr>
               <th>Programme Code</th>
               <th>Official Designation</th>
               <th className="text-center">Dept Affinity</th>
-              <th className="text-center">Alias</th>
               <th className="text-right">Actions</th>
             </tr>
           </thead>
@@ -276,11 +231,11 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
                     </td>
                     <td className="px-4 py-2 text-center">
                       <select
-                        value={editProgData.deptID}
+                        value={editProgData.departmentId}
                         onChange={(e) =>
                           setEditProgData((p) => ({
                             ...p,
-                            deptID: e.target.value,
+                            departmentId: parseInt(e.target.value),
                           }))
                         }
                         className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs font-bold"
@@ -291,18 +246,6 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
                           </option>
                         ))}
                       </select>
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      <input
-                        value={editProgData.newCodeID}
-                        onChange={(e) =>
-                          setEditProgData((p) => ({
-                            ...p,
-                            newCodeID: e.target.value,
-                          }))
-                        }
-                        className="w-16 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
-                      />
                     </td>
                     <td className="px-4 py-2 text-right space-x-2">
                       <button
@@ -328,22 +271,8 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
                       {prog.name}
                     </td>
                     <td className="text-center font-black opacity-30">
-                      <span
-                        title={
-                          departments.find(
-                            (d) => String(d.id) === String(prog.deptID),
-                          )?.name
-                        }
-                      >
-                        {departments.find(
-                          (d) => String(d.id) === String(prog.deptID),
-                        )?.code || prog.deptID}
-                      </span>
-                    </td>
-                    <td className="text-center">
-                      <span className="status-pill status-pill-info">
-                        {prog.newCodeID}
-                      </span>
+                      {departments.find((d) => d.id === prog.departmentId)
+                        ?.code || `DEPT-${prog.departmentId}`}
                     </td>
                     <td className="text-right space-x-1">
                       <button

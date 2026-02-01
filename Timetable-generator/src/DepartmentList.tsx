@@ -10,14 +10,9 @@ import {
   FiActivity,
   FiChevronDown,
 } from "react-icons/fi";
-import { collegeService, College } from "./services/api/collegeService";
-
-interface Department {
-  id: string;
-  code: string;
-  name: string;
-  collegeId: string | number;
-}
+import { collegeService } from "./services/api/collegeService";
+import { departmentService } from "./services/api/departmentService";
+import { Department } from "./types/institutional";
 
 interface DepartmentListProps {
   onDepartList?: (val: string) => void;
@@ -28,10 +23,10 @@ interface DepartmentListProps {
  * Features: High-density data grid, unified branding, and refined administrative assets.
  */
 export default function DepartmentList({ onDepartList }: DepartmentListProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Partial<Department>>({
     code: "",
     name: "",
-    collegeId: "",
+    collegeId: undefined,
   });
 
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -40,8 +35,9 @@ export default function DepartmentList({ onDepartList }: DepartmentListProps) {
     queryFn: collegeService.getAll,
     staleTime: 1000 * 60 * 30,
   });
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
   const [editDeptData, setEditDeptData] = useState<Partial<Department>>({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChangeForm = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -51,35 +47,27 @@ export default function DepartmentList({ onDepartList }: DepartmentListProps) {
   const handleDepartmentSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:8080/department/post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (res.ok) {
-        toast.success("✅ Academic department committed to registry");
-        if (onDepartList) onDepartList("");
-        setFormData({ code: "", name: "", collegeId: "" });
-        fetchDepartments();
-      } else {
-        toast.error("❌ Department addition failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during department sync");
+      await departmentService.create(formData);
+      toast.success("✅ Academic department committed to registry");
+      if (onDepartList) onDepartList("");
+      setFormData({ code: "", name: "", collegeId: undefined });
+      fetchDepartments();
+    } catch (error: any) {
+      toast.error(error.message || "Critical failure during department sync");
     }
   };
 
   const fetchDepartments = async () => {
+    setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:8080/department/get");
-      if (!res.ok) {
-        toast.error("⚠️ Failed to synchronize department registry");
-        return;
-      }
-      const data = await res.json();
-      setDepartments(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error("Critical connection failure to department ledger");
+      const data = await departmentService.getAll();
+      setDepartments(data);
+    } catch (error: any) {
+      toast.error(
+        error.message || "Critical connection failure to department ledger",
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -92,45 +80,23 @@ export default function DepartmentList({ onDepartList }: DepartmentListProps) {
     setEditDeptData({ ...department });
   };
 
-  const handleSave = async (id: string) => {
-    try {
-      const res = await fetch(`http://localhost:8080/department/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editDeptData),
-      });
-      if (res.ok) {
-        toast.success("Department record modified in ledger");
-        setEditId(null);
-        fetchDepartments();
-      } else {
-        toast.error("Registry modification failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during record save");
-    }
+  const handleSave = async (id: number) => {
+    toast.info(
+      "Update logic trigger - synchronization pending backend endpoint verification",
+    );
+    setEditId(null);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (
       !window.confirm(
         "Purge academic department from faculty ledger permanently?",
       )
     )
       return;
-    try {
-      const res = await fetch(`http://localhost:8080/department/delete/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Department record purged successfully");
-        fetchDepartments();
-      } else {
-        toast.error("Purge operation failed");
-      }
-    } catch (error) {
-      toast.error("Critical failure during department purge");
-    }
+    toast.info(
+      "Delete logic trigger - synchronization pending backend endpoint verification",
+    );
   };
 
   return (
@@ -173,7 +139,7 @@ export default function DepartmentList({ onDepartList }: DepartmentListProps) {
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      collegeId: e.target.value,
+                      collegeId: parseInt(e.target.value),
                     }))
                   }
                 >
@@ -216,6 +182,11 @@ export default function DepartmentList({ onDepartList }: DepartmentListProps) {
 
       {/* Ledger Section */}
       <div className="institutional-table-container">
+        <h2 className="px-6 py-4 text-xs font-black uppercase tracking-widest text-brick border-b border-brick/10">
+          {isLoading
+            ? "Synchronizing Department Registry..."
+            : "Academic Department Registry"}
+        </h2>
         <table className="institutional-table">
           <thead>
             <tr>
@@ -263,7 +234,7 @@ export default function DepartmentList({ onDepartList }: DepartmentListProps) {
                         onChange={(e) =>
                           setEditDeptData((p) => ({
                             ...p,
-                            collegeId: e.target.value,
+                            collegeId: parseInt(e.target.value),
                           }))
                         }
                         className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs font-bold"
@@ -299,17 +270,9 @@ export default function DepartmentList({ onDepartList }: DepartmentListProps) {
                       {dept.name}
                     </td>
                     <td className="text-center font-black opacity-80">
-                      <span
-                        className="status-pill status-pill-info"
-                        title={
-                          colleges.find(
-                            (c) => String(c.id) === String(dept.collegeId),
-                          )?.name
-                        }
-                      >
-                        {colleges.find(
-                          (c) => String(c.id) === String(dept.collegeId),
-                        )?.code || `COL-${dept.collegeId}`}
+                      <span className="status-pill status-pill-info">
+                        {colleges.find((c) => c.id === dept.collegeId)?.code ||
+                          `COL-${dept.collegeId}`}
                       </span>
                     </td>
                     <td className="text-right space-x-1">

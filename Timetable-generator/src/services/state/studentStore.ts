@@ -9,10 +9,10 @@ interface StudentStore {
   fetchStudents: () => Promise<void>;
   addStudent: (studentData: Partial<Student>) => Promise<Student>;
   updateStudent: (
-    id: string,
+    id: number,
     studentData: Partial<Student>,
   ) => Promise<Student>;
-  deleteStudent: (id: string) => Promise<void>;
+  deleteStudent: (id: number) => Promise<void>;
   setError: (error: string | null) => void;
   clearError: () => void;
 }
@@ -51,7 +51,7 @@ export const useStudentStore = create<StudentStore>((set) => ({
     }
   },
 
-  updateStudent: async (id: string, studentData: Partial<Student>) => {
+  updateStudent: async (id: number, studentData: Partial<Student>) => {
     set({ isLoading: true, error: null });
     try {
       const updated = await studentService.update(id, studentData);
@@ -66,7 +66,7 @@ export const useStudentStore = create<StudentStore>((set) => ({
     }
   },
 
-  deleteStudent: async (id: string) => {
+  deleteStudent: async (id: number) => {
     set({ isLoading: true, error: null });
     try {
       await studentService.delete(id);

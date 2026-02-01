@@ -1,46 +1,128 @@
 package com.example.springproject.model;
 
 import jakarta.persistence.*;
+import java.util.Date;
 
 @Entity
-@Table(name = "constraint table")
+@Table(name = "constraint_table")
 public class Constrainttable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
-    private String name;
-    private String type;
-    private String details;
+    private Integer id;
 
-    public int getId() {
+    @Column(name = "Date", updatable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date date;
+
+    private String periodIncE;
+    private String periodExcE;
+    private String venueIncE;
+    private String venueExcE;
+    private String periodIncV;
+    private String periodExcV;
+    private String examWAftE;
+    private String examWCoinE;
+    private String examExcE;
+    private String frontLE;
+
+    @PrePersist
+    protected void onCreate() {
+        date = new Date();
+    }
+
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public Date getDate() {
+        return date;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setDate(Date date) {
+        this.date = date;
     }
 
-    public String getType() {
-        return type;
+    public String getPeriodIncE() {
+        return periodIncE;
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public void setPeriodIncE(String periodIncE) {
+        this.periodIncE = periodIncE;
     }
 
-    public String getDetails() {
-        return details;
+    public String getPeriodExcE() {
+        return periodExcE;
     }
 
-    public void setDetails(String details) {
-        this.details = details;
+    public void setPeriodExcE(String periodExcE) {
+        this.periodExcE = periodExcE;
+    }
+
+    public String getVenueIncE() {
+        return venueIncE;
+    }
+
+    public void setVenueIncE(String venueIncE) {
+        this.venueIncE = venueIncE;
+    }
+
+    public String getVenueExcE() {
+        return venueExcE;
+    }
+
+    public void setVenueExcE(String venueExcE) {
+        this.venueExcE = venueExcE;
+    }
+
+    public String getPeriodIncV() {
+        return periodIncV;
+    }
+
+    public void setPeriodIncV(String periodIncV) {
+        this.periodIncV = periodIncV;
+    }
+
+    public String getPeriodExcV() {
+        return periodExcV;
+    }
+
+    public void setPeriodExcV(String periodExcV) {
+        this.periodExcV = periodExcV;
+    }
+
+    public String getExamWAftE() {
+        return examWAftE;
+    }
+
+    public void setExamWAftE(String examWAftE) {
+        this.examWAftE = examWAftE;
+    }
+
+    public String getExamWCoinE() {
+        return examWCoinE;
+    }
+
+    public void setExamWCoinE(String examWCoinE) {
+        this.examWCoinE = examWCoinE;
+    }
+
+    public String getExamExcE() {
+        return examExcE;
+    }
+
+    public void setExamExcE(String examExcE) {
+        this.examExcE = examExcE;
+    }
+
+    public String getFrontLE() {
+        return frontLE;
+    }
+
+    public void setFrontLE(String frontLE) {
+        this.frontLE = frontLE;
     }
 }

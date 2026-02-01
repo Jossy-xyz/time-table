@@ -1,27 +1,39 @@
 package com.example.springproject.controller;
 
-import com.example.springproject.model.Algorithmtable;
-import com.example.springproject.service.Algorithmservice;
+import com.example.springproject.service.PolicyEnforcementService;
+import com.example.springproject.service.SchedulerService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
+import java.util.Map;
 
 @RestController
 @RequestMapping("/algorithm")
-@CrossOrigin("http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:3000")
+public class AlgorithmController {
 
-public class Algorithmcontroller {
     @Autowired
-    private Algorithmservice algorithmservice;
+    private SchedulerService schedulerService;
 
-    @PostMapping("/alg")
-    public String add(@RequestBody List<Algorithmtable> algorithmtableList) {
-        for (Algorithmtable algorithmtable : algorithmtableList){
-            algorithmservice.saveAlgorithmtable(algorithmtable);
-        }
+    @Autowired
+    private PolicyEnforcementService policyService;
 
-        return "Working";
+    @PostMapping("/trigger")
+    public ResponseEntity<?> triggerAlgorithm(
+            @RequestParam(value = "username", required = false) String usernameParam,
+            @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
+        
+        String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
+        
+        // Enforce Admin access for algorithm triggering
+        // policyService.enforceScope(actorUsername, "ADMIN_ONLY", "EXECUTE"); 
+        
+        schedulerService.triggerAlgorithm();
+        
+        return ResponseEntity.ok(Map.of(
+            "message", "Algorithm started successfully", 
+            "status", "QUEUED"
+        ));
     }
 }

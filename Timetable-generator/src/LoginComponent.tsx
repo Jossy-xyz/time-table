@@ -7,7 +7,7 @@ import React, {
   KeyboardEvent,
   FormEvent,
 } from "react";
-import { useAuth } from "./Authenticate";
+import { authService } from "./services/api/authService";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ToastContainer, toast } from "react-toastify";
@@ -530,7 +530,6 @@ function AuthCard({
 }
 
 export default function Login() {
-  const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoadingSubmit, setIsLoadingSubmit] = useState(false);
@@ -547,13 +546,7 @@ export default function Login() {
     setIsLoadingSubmit(true);
 
     try {
-      const userCredentials: User = {
-        id: "",
-        username: username,
-        password: password,
-        role: "ADMIN", // Default prior to auth response
-      };
-      await login(userCredentials);
+      await authService.login(username, password);
       toast.success("Login successful!");
       setTimeout(() => {
         navigate("/dashboard");
