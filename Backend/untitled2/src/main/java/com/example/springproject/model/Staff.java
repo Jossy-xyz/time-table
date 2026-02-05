@@ -1,40 +1,100 @@
 package com.example.springproject.model;
 
 import jakarta.persistence.*;
-import org.springframework.web.bind.annotation.CrossOrigin;
-
-
-import jakarta.persistence.*;
-        import org.springframework.web.bind.annotation.CrossOrigin;
+import java.util.Date;
 
 @Entity
 @Table(name = "staff")
-
 public class Staff {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
 
-    private int id;
-    private String surname;
-    private String firstname;
-    private String middlename;
-    private int staff_id;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
+
+    @Column(name = "staff_id", unique = true, nullable = false, length = 50)
+    private String staffId;
+
+    @Column(length = 100)
     private String title;
-    private Integer deptid;
-    private Integer statusID;
+
+    @Column(nullable = false, length = 255)
+    private String surname;
+
+    @Column(nullable = false, length = 255)
+    private String firstname;
+
+    @Column(length = 255)
+    private String middlename;
+
+    @Column(name = "status_id", columnDefinition = "INT DEFAULT 1")
+    private Integer statusId;
+
+    @Column(columnDefinition = "INT DEFAULT 1")
     private Integer type;
-    private Integer in_use;
-    private Integer duty_count;
+
+    @Column(name = "in_use", columnDefinition = "TINYINT(1) DEFAULT 1")
+    private Boolean inUse;
+
+    @Column(name = "duty_count", columnDefinition = "INT DEFAULT 0")
+    private Integer dutyCount;
+
+    @Column(length = 255)
     private String specialization;
-    private String research_area;
+
+    @Column(name = "research_area", length = 255)
+    private String researchArea;
+
+    @Column(length = 255)
     private String discipline;
+
+    @Column(name = "short_name", length = 50)
+    private String shortName;
+
+    @Column(name = "serial_no")
+    private Integer serialNo;
+
+    @Column(name = "created_at", updatable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = new Date();
+    }
 
     public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
+    }
+
+    public Department getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(Department department) {
+        this.department = department;
+    }
+
+    public String getStaffId() {
+        return staffId;
+    }
+
+    public void setStaffId(String staffId) {
+        this.staffId = staffId;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     public String getSurname() {
@@ -61,44 +121,12 @@ public class Staff {
         this.middlename = middlename;
     }
 
-    public int getStaff_id() {
-        return staff_id;
+    public Integer getStatusId() {
+        return statusId;
     }
 
-    public void setStaff_id(int staff_id) {
-        this.staff_id = staff_id;
-    }
-
-    public Integer getIn_use() {
-        return in_use;
-    }
-
-    public void setIn_use(Integer in_use) {
-        this.in_use = in_use;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public Integer getDeptid() {
-        return deptid;
-    }
-
-    public void setDeptid(Integer deptid) {
-        this.deptid = deptid;
-    }
-
-    public Integer getStatusID() {
-        return statusID;
-    }
-
-    public void setStatusID(Integer statusID) {
-        this.statusID = statusID;
+    public void setStatusId(Integer statusId) {
+        this.statusId = statusId;
     }
 
     public Integer getType() {
@@ -109,22 +137,20 @@ public class Staff {
         this.type = type;
     }
 
-
-
-    public Integer getDuty_count() {
-        return duty_count;
+    public Boolean getInUse() {
+        return inUse;
     }
 
-    public void setDuty_count(Integer duty_count) {
-        this.duty_count = duty_count;
+    public void setInUse(Boolean inUse) {
+        this.inUse = inUse;
     }
 
-    public String getResearch_area() {
-        return research_area;
+    public Integer getDutyCount() {
+        return dutyCount;
     }
 
-    public void setResearch_area(String research_area) {
-        this.research_area = research_area;
+    public void setDutyCount(Integer dutyCount) {
+        this.dutyCount = dutyCount;
     }
 
     public String getSpecialization() {
@@ -135,6 +161,13 @@ public class Staff {
         this.specialization = specialization;
     }
 
+    public String getResearchArea() {
+        return researchArea;
+    }
+
+    public void setResearchArea(String researchArea) {
+        this.researchArea = researchArea;
+    }
 
     public String getDiscipline() {
         return discipline;
@@ -142,6 +175,30 @@ public class Staff {
 
     public void setDiscipline(String discipline) {
         this.discipline = discipline;
+    }
+
+    public String getShortName() {
+        return shortName;
+    }
+
+    public void setShortName(String shortName) {
+        this.shortName = shortName;
+    }
+
+    public Integer getSerialNo() {
+        return serialNo;
+    }
+
+    public void setSerialNo(Integer serialNo) {
+        this.serialNo = serialNo;
+    }
+
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
     }
 }
 

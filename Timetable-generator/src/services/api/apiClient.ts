@@ -1,0 +1,72 @@
+import { useAuthStore } from "../state/authStore";
+
+const BASE_URL = "http://localhost:8080";
+
+/**
+ * Institutional API Client
+ * Automatically handles headers and actor scoping for the backend.
+ */
+export const apiClient = {
+  fetch: async <T = any>(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<T> => {
+    const { user } = useAuthStore.getState();
+
+    const headers = new Headers(options.headers);
+    headers.set("Content-Type", "application/json");
+
+    // Inject Actor Username for DIV Scoping
+    if (user?.username) {
+      headers.set("X-Actor-Username", user.username);
+    }
+
+    const config: RequestInit = {
+      ...options,
+      headers,
+    };
+
+    const response = await fetch(`${BASE_URL}${endpoint}`, config);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `API Error: ${response.status}`);
+    }
+
+    // Handle empty responses (like 204 No Content or success messages)
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      return response.json() as Promise<T>;
+    }
+
+    return response.text() as unknown as T;
+  },
+
+  get: <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> =>
+    apiClient.fetch<T>(endpoint, { ...options, method: "GET" }),
+
+  post: <T = any>(
+    endpoint: string,
+    body?: any,
+    options: RequestInit = {},
+  ): Promise<T> =>
+    apiClient.fetch<T>(endpoint, {
+      ...options,
+      method: "POST",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+
+  put: <T = any>(
+    endpoint: string,
+    body?: any,
+    options: RequestInit = {},
+  ): Promise<T> =>
+    apiClient.fetch<T>(endpoint, {
+      ...options,
+      method: "PUT",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+
+  delete: <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> =>
+    apiClient.fetch<T>(endpoint, { ...options, method: "DELETE" }),
+};

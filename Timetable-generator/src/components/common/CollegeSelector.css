@@ -1,0 +1,281 @@
+/* ============================================
+   COLLEGE SELECTOR COMPONENT STYLES
+   ============================================ */
+
+/* Container */
+.college-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.college-selector-compact {
+  gap: 0.75rem;
+}
+
+/* Label */
+.college-selector-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--brand-text);
+  letter-spacing: 0.5px;
+}
+
+/* Grid Layout */
+.college-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .college-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .college-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+}
+
+/* College Badge Button */
+.college-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 0.75rem;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1.5px solid rgba(255, 211, 107, 0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: var(--brand-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+}
+
+.college-badge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--college-accent, transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Hover State */
+.college-badge:hover {
+  border-color: var(--college-accent, rgba(255, 211, 107, 0.4));
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.college-badge:hover::before {
+  opacity: 0.05;
+}
+
+/* Active State */
+.college-badge-active {
+  background: rgba(0, 0, 0, 0.25);
+  border-color: var(--college-accent);
+  box-shadow:
+    0 0 0 2px rgba(255, 211, 107, 0.1),
+    inset 0 0 0 2px var(--college-accent);
+}
+
+.college-badge-active::before {
+  opacity: 0.08;
+}
+
+.college-badge-active:hover {
+  box-shadow:
+    0 0 0 3px rgba(255, 211, 107, 0.15),
+    inset 0 0 0 2px var(--college-accent);
+}
+
+/* Badge Icon */
+.college-badge-icon {
+  font-size: 1.75rem;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.college-badge:hover .college-badge-icon {
+  transform: scale(1.1);
+}
+
+.college-badge-active .college-badge-icon {
+  filter: drop-shadow(0 0 4px var(--college-accent));
+}
+
+/* Badge Name */
+.college-badge-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 70px;
+}
+
+/* Info Text */
+.college-selector-info {
+  font-size: 0.85rem;
+  color: rgba(231, 220, 207, 0.8);
+  text-align: center;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.college-selector-info strong {
+  color: var(--brand-gold-1);
+  font-weight: 700;
+}
+
+/* ============================================
+   COLLEGE ACCENT CSS VARIABLES
+   ============================================ */
+
+:root {
+  /* College Accent Colors - Subtle, secondary layer */
+  --college-accent-sciences: #4caf50;
+  --college-accent-engineering: #2196f3;
+  --college-accent-food-tech: #ff9800;
+  --college-accent-management: #9c27b0;
+
+  /* Tint variations for different use cases */
+  --college-accent-light: 0.07; /* 7% opacity for background tint */
+  --college-accent-medium: 0.2; /* 20% opacity for borders */
+  --college-accent-dark: 0.5; /* 50% opacity for icon accents */
+}
+
+/* ============================================
+   COLLEGE BADGE INTEGRATION IN FORMS
+   ============================================ */
+
+/* Optional: Show selected college as badge in form header */
+.login-college-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 211, 107, 0.25);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--brand-text);
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+}
+
+.login-college-indicator-icon {
+  font-size: 1rem;
+  filter: drop-shadow(0 0 2px var(--college-accent, transparent));
+}
+
+.login-college-indicator-name {
+  color: var(--brand-muted);
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+  .college-selector-label {
+    font-size: 0.85rem;
+  }
+
+  .college-badge {
+    padding: 0.875rem 0.625rem;
+    font-size: 0.8rem;
+  }
+
+  .college-badge-icon {
+    font-size: 1.5rem;
+  }
+
+  .college-badge-name {
+    font-size: 0.75rem;
+  }
+
+  .college-selector-info {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .college-selector {
+    gap: 0.75rem;
+  }
+
+  .college-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .college-badge {
+    padding: 0.75rem 0.5rem;
+    border-radius: 10px;
+  }
+
+  .college-badge-icon {
+    font-size: 1.375rem;
+  }
+
+  .college-badge-name {
+    font-size: 0.7rem;
+    max-width: 60px;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+.college-badge:focus {
+  outline: 2px solid var(--brand-gold-1);
+  outline-offset: 2px;
+}
+
+.college-badge:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.college-badge:focus-visible {
+  outline: 2px solid var(--brand-gold-1);
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: more) {
+  .college-badge {
+    border-width: 2px;
+  }
+
+  .college-badge-active {
+    border-width: 3px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .college-badge,
+  .college-badge-icon {
+    transition: none;
+  }
+
+  .college-badge:hover .college-badge-icon {
+    transform: none;
+  }
+}

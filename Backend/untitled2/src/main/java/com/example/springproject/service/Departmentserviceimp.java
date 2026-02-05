@@ -1,7 +1,6 @@
 package com.example.springproject.service;
 
 import com.example.springproject.model.Department;
-import com.example.springproject.model.Examtt1;
 import com.example.springproject.repository.Departmentrepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,30 +14,30 @@ public class Departmentserviceimp implements Departmentservice {
     private Departmentrepository departmentrepository;
 
     @Override
-    public Department saveDepartment(Department department){
+    public Department saveDepartment(Department department) {
         return departmentrepository.save(department);
     }
 
     @Override
-    public List<Department> getAllDepartments(){
+    public List<Department> getAllDepartments() {
         return departmentrepository.findAll();
     }
 
     @Override
-    public Department updateDepartment(int id, Department updatedDepartment){
-        Optional<Department> optional= departmentrepository.findById(id);
-        if(optional.isPresent()){
+    public Department updateDepartment(int id, Department updatedDepartment) {
+        Optional<Department> optional = departmentrepository.findById(id);
+        if (optional.isPresent()) {
             Department existing = optional.get();
             existing.setCode(updatedDepartment.getCode());
             existing.setName(updatedDepartment.getName());
-            existing.setExamtt1(updatedDepartment.getExamtt1());
+            existing.setCentre(updatedDepartment.getCentre());
             return departmentrepository.save(existing);
         }
         throw new RuntimeException("Department not found");
     }
 
     @Override
-    public void deleteDepartment(int id){
+    public void deleteDepartment(int id) {
         departmentrepository.deleteById(id);
     }
 }

@@ -1,0 +1,60 @@
+import React from "react";
+import StudentForm from "../Studentform";
+import StudentList from "../StudentList";
+
+/**
+ * Institutional Student Registry Page
+ * Orchestrates the enrollment and ledger management for student records.
+ */
+const StudentsPage: React.FC = () => {
+  return (
+    <>
+      {/* Unified Institutional Sticky Header */}
+      <div className="sticky top-16 z-40 bg-page/95 backdrop-blur-md border-b border-brick/10 -mx-6 px-6 pt-8 pb-4 mb-8 flex justify-between items-end transition-all shadow-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-[1px] bg-brick/30" />
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-brick">
+              Enrollment Interface
+            </h2>
+          </div>
+          <h1 className="text-3xl font-black text-institutional-primary tracking-tight">
+            Student Registry
+          </h1>
+          <p className="text-[11px] text-institutional-secondary font-medium italic opacity-70">
+            Academic Ledger • Enrollment Management
+          </p>
+        </div>
+
+        <div className="text-right hidden md:block pb-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-brick">
+            Bells University
+          </p>
+          <p className="text-[10px] font-bold text-institutional-muted">
+            Technology & Innovation
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-12">
+        <section>
+          <StudentForm />
+        </section>
+
+        <section>
+          <div className="flex items-center gap-2 mb-6">
+            <span className="w-8 h-[1px] bg-brick/20" />
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-brick">
+              Registry Ledger
+            </h2>
+          </div>
+          <div className="bg-surface rounded-institutional border border-brick/10 shadow-sm overflow-hidden">
+            <StudentList />
+          </div>
+        </section>
+      </div>
+    </>
+  );
+};
+
+export default StudentsPage;

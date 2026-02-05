@@ -1,21 +1,37 @@
 package com.example.springproject.service;
 
 import com.example.springproject.model.Course;
-import com.example.springproject.model.Student;
+import com.example.springproject.model.Department;
 import com.example.springproject.repository.Courserepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
-public class Courseserviceimp implements Courseservice{
+public class Courseserviceimp implements Courseservice {
+    
     @Autowired
     private Courserepository courserepository;
 
+    @Autowired
+    private PolicyEnforcementService policyService;
+
     @Override
-    public Course saveCourse(Course course){
+    @Transactional
+    public Course saveCourse(Course course, String actorUsername) {
+        // DIV: Scope Verification
+        policyService.enforceScope(
+            actorUsername, 
+            course.getDepartment().getId(),
+            course.getDepartment().getCentre().getId()
+        );
+
+        if (courserepository.existsByCode(course.getCode())) {
+            throw new RuntimeException("Course with code " + course.getCode() + " already exists.");
+        }
+
         return courserepository.save(course);
     }
 
@@ -24,33 +40,56 @@ public class Courseserviceimp implements Courseservice{
         return courserepository.findAll();
     }
 
-    public List<Course> getCoursesByDepartment(int deptId) {
-        return courserepository.findByDepartmentId(deptId);
+    @Override
+    public List<Course> getCoursesByDepartment(Department department) {
+        return courserepository.findByDepartment(department);
     }
-
-    public List<Course> getCoursesByCollege(int collegeId){
-        return courserepository.findByCollegeId(collegeId);
+    
+    @Override
+    public List<Course> getCoursesByCollege(Integer collegeId) {
+        return courserepository.findByDepartmentCentreId(collegeId);
     }
 
     @Override
-    public Course updateCourse(int id, Course updatedCourse){
-        Optional<Course> optional = courserepository.findById(id);
-        if(optional.isPresent()){
-            Course existing = optional.get();
-            existing.setCode(updatedCourse.getCode());
-            existing.setUnit(updatedCourse.getUnit());
-            existing.setTitle(updatedCourse.getTitle());
-            existing.setSemester(updatedCourse.getSemester());
-            existing.setExamtype(updatedCourse.getExamtype());
-            existing.setEn_Count(updatedCourse.getEn_Count());
-            existing.setDepartmentId(updatedCourse.getDepartmentId());
-            return courserepository.save(existing);
-        }
-        throw new RuntimeException("Course not found");
+    @Transactional
+    public Course updateCourse(Integer id, Course updated, String actorUsername) {
+        Course existing = courserepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        // DIV: Scope Verification
+        policyService.enforceScope(
+            actorUsername, 
+            existing.getDepartment().getId(),
+            existing.getDepartment().getCentre().getId()
+        );
+
+        existing.setCode(updated.getCode());
+        existing.setTitle(updated.getTitle());
+        existing.setUnit(updated.getUnit());
+        existing.setSemester(updated.getSemester());
+        existing.setExamType(updated.getExamType());
+        existing.setEnrollmentCount(updated.getEnrollmentCount());
+        existing.setLectureHours(updated.getLectureHours());
+        existing.setTutorialHours(updated.getTutorialHours());
+        existing.setPracticalHours(updated.getPracticalHours());
+        existing.setDepartment(updated.getDepartment());
+        
+        return courserepository.save(existing);
     }
 
     @Override
-    public void deleteCourse(int id){
+    @Transactional
+    public void deleteCourse(Integer id, String actorUsername) {
+        Course existing = courserepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        // DIV: Scope Verification
+        policyService.enforceScope(
+            actorUsername, 
+            existing.getDepartment().getId(),
+            existing.getDepartment().getCentre().getId()
+        );
+
         courserepository.deleteById(id);
     }
 }

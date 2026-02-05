@@ -1,15 +1,17 @@
 package com.example.springproject.controller;
 
+import com.example.springproject.dto.CourseDto;
 import com.example.springproject.model.Course;
 import com.example.springproject.model.Users;
-import com.example.springproject.repository.Userrep;
 import com.example.springproject.service.Courseservice;
+import com.example.springproject.service.Userservice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "http://localhost:3000")
 @RestController
@@ -20,72 +22,68 @@ public class Coursecontroller {
     private Courseservice courseservice;
 
     @Autowired
-    private Userrep userrep;
+    private Userservice userservice;
 
-    ///// Add Course
     @PostMapping("/done")
-    public String add(@RequestBody Course course) {
-        courseservice.saveCourse(course);
-        return "Saved course";
+    public String add(@RequestBody Course course, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
+        courseservice.saveCourse(course, actorUsername);
+        return "Course added successfully";
     }
 
-
-
-    /////Get courses only for the logged-in user’s department
     @GetMapping("/get")
-    public List<Course> getAllCourses(@RequestParam String username) {
-        Users user = userrep.findByusername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public List<CourseDto> getAllCourses(
+            @RequestParam(value = "username", required = false) String usernameParam,
+            @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
+        
+        String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
+        Users actor = userservice.getUserByUsername(actorUsername);
+        
+        if (actor == null) {
+            System.err.println("Access denied: Actor not found - " + actorUsername);
+            return List.of();
+        }
+
         List<Course> courses;
-        if("ADMIN".equalsIgnoreCase(user.getRole().name())){
-            return courseservice.getAllCourses();
-        }else {
-            if (user.getDepartment() == null) {
-                throw new RuntimeException("Department not set for this user");
-            }
+        String role = (actor.getRole() != null) ? actor.getRole().getCode() : "UNKNOWN";
+        
+        if ("AD".equalsIgnoreCase(role)) {
+            courses = courseservice.getAllCourses();
+        } else if ("CR".equalsIgnoreCase(role) && actor.getCollege() != null) {
+            courses = courseservice.getCoursesByCollege(actor.getCollege().getId());
+        } else if (actor.getDepartment() != null) {
+            courses = courseservice.getCoursesByDepartment(actor.getDepartment());
+        } else {
+            courses = List.of();
         }
 
-        int deptId = user.getDepartment().getId();  // assuming your Users entity has department_id
-        return courseservice.getCoursesByDepartment(deptId);
+        return courses.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
-    // Update course
     @PutMapping("/update/{id}")
-    public Course updateCourse(@PathVariable int id, @RequestBody Course updatedCourse) {
-        return courseservice.updateCourse(id, updatedCourse);
+    public CourseDto updateCourse(@PathVariable Integer id, @RequestBody Course updatedCourse, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
+        Course course = courseservice.updateCourse(id, updatedCourse, actorUsername);
+        return convertToDto(course);
     }
 
-    // Export courses (for CSV)
-    @GetMapping("/export")
-    public String exportCourse(@RequestParam String username) throws IOException {
-        Users user = userrep.findByusername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        int deptId = user.getDepartment().getId();;
-        List<Course> courses = courseservice.getCoursesByDepartment(deptId);
-
-        String filepath = "C:/Institution/courses.csv";
-
-        FileWriter writer = new FileWriter(filepath);
-        writer.append("Coursecode,Courseunit,title,semester,examptype,encount,offereingdeptid\n");
-        for (Course c : courses) {
-            writer.append(c.getCode()).append(",")
-                    .append(String.valueOf(c.getUnit())).append(",")
-                    .append(c.getTitle()).append(",")
-                    .append(String.valueOf(c.getSemester())).append(",")
-                    .append(String.valueOf(c.getExamtype())).append(",")
-                    .append(String.valueOf(c.getEn_Count())).append(",")
-                    .append(String.valueOf(c.getDepartmentId())).append("\n");
-        }
-        writer.flush();
-        writer.close();
-        return "CSV generated at: " + filepath;
-    }
-
-    // Delete course
     @DeleteMapping("/delete/{id}")
-    public String deleteCourse(@PathVariable int id) {
-        courseservice.deleteCourse(id);
-        return "Course deleted";
+    public String deleteCourse(@PathVariable Integer id, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
+        courseservice.deleteCourse(id, actorUsername);
+        return "Course deleted successfully";
+    }
+
+    private CourseDto convertToDto(Course course) {
+        CourseDto dto = new CourseDto();
+        dto.setId(course.getId());
+        dto.setCode(course.getCode());
+        dto.setTitle(course.getTitle());
+        dto.setUnit(course.getUnit());
+        dto.setSemester(course.getSemester());
+        dto.setExamType(course.getExamType());
+        dto.setEnrollmentCount(course.getEnrollmentCount());
+        dto.setLectureHours(course.getLectureHours());
+        dto.setTutorialHours(course.getTutorialHours());
+        dto.setPracticalHours(course.getPracticalHours());
+        dto.setDepartmentId(course.getDepartment() != null ? course.getDepartment().getId() : null);
+        return dto;
     }
 }

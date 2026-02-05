@@ -1,55 +1,70 @@
 package com.example.springproject.model;
 
 import jakarta.persistence.*;
+import java.util.Date;
 
 @Entity
 @Table(name = "examtab")
 public class Examtab {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
-    private String schedule_policy;
-    private int max_examl;
-    private int min_examl;
-    private int exam_level_high_limit;
+    private Long id;
 
-    public int getId() {
+    @Column(name = "schedule_policy")
+    private String schedulePolicy;
+
+    @Column(name = "max_examl", columnDefinition = "INT DEFAULT 0")
+    private Integer maxExaml;
+
+    @Column(name = "min_examl", columnDefinition = "INT DEFAULT 0")
+    private Integer minExaml;
+
+    @Column(name = "created_at", updatable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = new Date();
+    }
+
+    public Long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public String getSchedule_policy() {
-        return schedule_policy;
+    public String getSchedulePolicy() {
+        return schedulePolicy;
     }
 
-    public void setSchedule_policy(String schedule_policy) {
-        this.schedule_policy = schedule_policy;
+    public void setSchedulePolicy(String schedulePolicy) {
+        this.schedulePolicy = schedulePolicy;
     }
 
-    public int getMax_examl() {
-        return max_examl;
+    public Integer getMaxExaml() {
+        return maxExaml;
     }
 
-    public void setMax_examl(int max_examl) {
-        this.max_examl = max_examl;
+    public void setMaxExaml(Integer maxExaml) {
+        this.maxExaml = maxExaml;
     }
 
-    public int getMin_examl() {
-        return min_examl;
+    public Integer getMinExaml() {
+        return minExaml;
     }
 
-    public void setMin_examl(int min_examl) {
-        this.min_examl = min_examl;
+    public void setMinExaml(Integer minExaml) {
+        this.minExaml = minExaml;
     }
 
-    public int getExam_level_high_limit() {
-        return exam_level_high_limit;
+    public Date getCreatedAt() {
+        return createdAt;
     }
 
-    public void setExam_level_high_limit(int exam_level_high_limit) {
-        this.exam_level_high_limit = exam_level_high_limit;
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
     }
 }

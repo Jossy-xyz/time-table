@@ -1,59 +1,62 @@
 package com.example.springproject.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import java.util.Date;
 
 @Entity
-@Table(name = "registration")
+@Table(name = "registration", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"student_id", "course_id", "session"})
+})
 public class Registration {
     @Id
-    private int id;
-    private int regDMC;
-    private int centreID;
-    private String matricNO;
-    private String courseCode;
-    private String session;
-    private int semester;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    public int getId() {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_id", nullable = false)
+    private Student student;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id", nullable = false)
+    private Course course;
+
+    @Column(nullable = false, length = 20)
+    private String session;
+
+    @Column(nullable = false)
+    private Integer semester;
+
+    @Column(name = "created_at", updatable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = new Date();
+    }
+
+    public Long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public int getRegDMC() {
-        return regDMC;
+    public Student getStudent() {
+        return student;
     }
 
-    public void setRegDMC(int regDMC) {
-        this.regDMC = regDMC;
+    public void setStudent(Student student) {
+        this.student = student;
     }
 
-    public int getCentreID() {
-        return centreID;
+    public Course getCourse() {
+        return course;
     }
 
-    public void setCentreID(int centreID) {
-        this.centreID = centreID;
-    }
-
-    public String getMatricNO() {
-        return matricNO;
-    }
-
-    public void setMatricNO(String matricNO) {
-        this.matricNO = matricNO;
-    }
-
-    public String getCourseCode() {
-        return courseCode;
-    }
-
-    public void setCourseCode(String courseCode) {
-        this.courseCode = courseCode;
+    public void setCourse(Course course) {
+        this.course = course;
     }
 
     public String getSession() {
@@ -64,11 +67,19 @@ public class Registration {
         this.session = session;
     }
 
-    public int getSemester() {
+    public Integer getSemester() {
         return semester;
     }
 
-    public void setSemester(int semester) {
+    public void setSemester(Integer semester) {
         this.semester = semester;
+    }
+
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
     }
 }

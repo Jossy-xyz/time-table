@@ -1,0 +1,115 @@
+/* ==========================================================================
+   BELLS UNIVERSITY - CORE DESIGN SYSTEM
+   Professional Institutional Aesthetic: Brick Brown + Shiny Yellow 
+   ========================================================================== */
+
+:root {
+  /* Primary Brand Colors */
+  --brand-brick-1: #b8846f; /* warm brick primary */
+  --brand-brick-2: #a67660; /* deep brick secondary */
+  --brand-brick-3: #8a5b47; /* dark brick accent */
+
+  --brand-gold-1: #ffd36b; /* bright shiny yellow */
+  --brand-gold-2: #ffb800; /* deep warm gold */
+
+  /* Neutral Color Palette (Light Theme) */
+  --bg-main: #f5ede3; /* main page background */
+  --bg-card: #ffffff; /* card/panel background */
+  --bg-input: #f8f4f0; /* input background */
+
+  --text-primary: #2c2c2c; /* headings/titles */
+  --text-secondary: #4a4a4a; /* body text */
+  --text-muted: #7a7a7a; /* metadata/placeholders */
+  --text-on-brand: #fff7f0; /* text on brick background */
+
+  /* Status Colors (Muted Academic Palette) */
+  --academic-red: #a84444; /* error/danger */
+  --academic-green: #4a7a4a; /* success */
+  --academic-blue: #4a6a8a; /* info */
+
+  /* Physical Styles */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --brand-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --brand-shadow-md: 0 4px 16px rgba(166, 118, 96, 0.12);
+  --brand-shadow-lg: 0 10px 30px rgba(166, 118, 96, 0.15);
+
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark Theme Variables */
+.dark {
+  --bg-main: #0c0a09; /* Rich ebonite black */
+  --bg-card: #141211; /* Deep charcoal brown */
+  --bg-input: #1c1917; /* Lighter charcoal brown */
+
+  --text-primary: #f5f5f5; /* Pure soft white */
+  --text-secondary: #a8a29e; /* Stone gray */
+  --text-muted: #78716c; /* Muted stone */
+
+  --brand-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --brand-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --brand-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.7);
+}
+
+/* Base Component Styles */
+
+/* Institutional Gradient Panel */
+.brand-gradient-panel {
+  background: linear-gradient(
+    135deg,
+    var(--brand-brick-1) 0%,
+    var(--brand-brick-2) 100%
+  );
+  color: var(--text-on-brand);
+}
+
+/* Premium Card */
+.brand-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(166, 118, 96, 0.1);
+  box-shadow: var(--brand-shadow-md);
+  transition: var(--transition-smooth);
+}
+.brand-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--brand-shadow-lg);
+}
+
+/* Shiny Gold Button (Bell Striker Style) */
+.brand-button-gold {
+  background: linear-gradient(
+    135deg,
+    var(--brand-gold-1) 0%,
+    var(--brand-gold-2) 100%
+  );
+  color: var(--brand-brick-3);
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  box-shadow: 0 4px 12px rgba(255, 211, 107, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+.brand-button-gold:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(255, 211, 107, 0.4);
+}
+.brand-button-gold:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Tech Pattern Utility */
+.tech-pattern-overlay {
+  background-image: radial-gradient(
+    rgba(255, 211, 107, 0.05) 1px,
+    transparent 1px
+  );
+  background-size: 20px 20px;
+}

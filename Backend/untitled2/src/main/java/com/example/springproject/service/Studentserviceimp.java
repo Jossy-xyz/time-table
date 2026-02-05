@@ -1,56 +1,95 @@
 package com.example.springproject.service;
 
 import com.example.springproject.model.Student;
+import com.example.springproject.model.Department;
 import com.example.springproject.repository.Studentrepository;
-import jakarta.persistence.Id;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+
 @Service
 public class Studentserviceimp implements Studentservice {
 
     @Autowired
     private Studentrepository studentrepository;
 
+    @Autowired
+    private PolicyEnforcementService policyService;
+
     @Override
-    public Student saveStudent(Student student){
+    @Transactional
+    public Student saveStudent(Student student, String actorUsername) {
+        // DIV: Scope Verification
+        policyService.enforceScope(
+            actorUsername, 
+            student.getDepartment().getId(),
+            student.getDepartment().getCentre().getId()
+        );
+
+        if (studentrepository.existsByMatricNo(student.getMatricNo())) {
+            throw new RuntimeException("Student with Matric No " + student.getMatricNo() + " already exists.");
+        }
+
         return studentrepository.save(student);
     }
 
     @Override
-    public List<Student> getAllStudents(){
+    public List<Student> getAllStudents() {
         return studentrepository.findAll();
     }
 
     @Override
-    public List<Student> getStudentsByDepartment(int deptID) {
-        return studentrepository.findByDeptID(deptID);
+    public List<Student> getStudentsByDepartment(Department department) {
+        return studentrepository.findByDepartment(department);
     }
 
     @Override
-    public Student updateStudent(Long id, Student updatedStudent){
-        Optional<Student> optional = studentrepository.findById(id);
-        if(optional.isPresent()){
-            Student existing = optional.get();
-            existing.setMatric_No(updatedStudent.getMatric_No());
-            existing.setSurname(updatedStudent.getSurname());
-            existing.setFirstname(updatedStudent.getFirstname());
-            existing.setLevel(updatedStudent.getLevel());
-            existing.setMiddlename(updatedStudent.getMiddlename());
-            existing.setDeptID(updatedStudent.getDeptID());
-            existing.setGender(updatedStudent.getGender());
-            existing.setStart_Session(updatedStudent.getStart_Session());
-            existing.setProgramme(updatedStudent.getProgramme());
-            existing.setProgrammeID(updatedStudent.getProgrammeID());
-            return studentrepository.save(existing);
-        }
-        throw new RuntimeException("Student not found");
+    public List<Student> getStudentsByCollege(Integer collegeId) {
+        return studentrepository.findByDepartmentCentreId(collegeId);
     }
 
     @Override
-    public void deleteStudent(Long id){
+    @Transactional
+    public Student updateStudent(Integer id, Student updated, String actorUsername) {
+        Student existing = studentrepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Student not found"));
+
+        // DIV: Scope Verification
+        policyService.enforceScope(
+            actorUsername, 
+            existing.getDepartment().getId(),
+            existing.getDepartment().getCentre().getId()
+        );
+
+        existing.setMatricNo(updated.getMatricNo());
+        existing.setSurname(updated.getSurname());
+        existing.setFirstname(updated.getFirstname());
+        existing.setMiddlename(updated.getMiddlename());
+        existing.setLevel(updated.getLevel());
+        existing.setGender(updated.getGender());
+        existing.setStartSession(updated.getStartSession());
+        existing.setProgrammeName(updated.getProgrammeName());
+        existing.setDepartment(updated.getDepartment());
+        existing.setProgram(updated.getProgram());
+        
+        return studentrepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public void deleteStudent(Integer id, String actorUsername) {
+        Student existing = studentrepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Student not found"));
+
+        // DIV: Scope Verification
+        policyService.enforceScope(
+            actorUsername, 
+            existing.getDepartment().getId(),
+            existing.getDepartment().getCentre().getId()
+        );
+
         studentrepository.deleteById(id);
     }
 }
