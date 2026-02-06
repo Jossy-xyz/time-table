@@ -140,6 +140,7 @@ export interface User {
 export interface Constraint {
   id: number;
   name: string;
+  description?: string;
   date?: string;
   periodIncE: string;
   periodExcE: string;
@@ -151,10 +152,13 @@ export interface Constraint {
   examExcE: string;
   examWCoinE: string;
   frontLE: string;
+  staffOmit: string; // Formatting: "BUT/001;BUT/002"
+  staffPeriodExcl: string; // Formatting: "BUT/001(1,2);BUT/002(4,5)"
 }
 
 export interface GeneralSettings {
   id: number;
+  description?: string;
   daysPerWeek: number;
   periodsPerDay: number;
   semester: string;
@@ -209,6 +213,7 @@ export interface PeriodMapping {
   dayOfWeek: string;
   weekNumber: number;
   periodOfDay: number;
+  isSystemLocked?: boolean;
 }
 
 export interface PeriodMappingResponse {

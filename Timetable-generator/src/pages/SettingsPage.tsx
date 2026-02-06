@@ -1,5 +1,10 @@
-import React, { useState, FormEvent, ChangeEvent } from "react";
+import React, { useState, FormEvent, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuthStore } from "../services/state/authStore";
+import { GeneralSettings, PeriodMappingResponse } from "../types/institutional";
+import { generalSettingsService } from "../services/api/generalSettingsService";
+import { constraintService } from "../services/api/constraintService";
+import { periodExclusionService } from "../services/api/periodExclusionService";
 import {
   FiX,
   FiInfo,
@@ -13,31 +18,25 @@ import {
   FiWifi,
   FiRefreshCw,
   FiZap,
+  FiRotateCcw,
 } from "react-icons/fi";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import InstitutionalConstraintsSection from "../components/molecules/InstitutionalConstraintsSection";
-import { constraintService } from "../services/api/constraintService";
-import { examSettingsService } from "../services/api/examSettingsService";
-import { staffService } from "../services/api/staffService";
-import { studentService } from "../services/api/studentService";
-import { courseService } from "../services/api/courseService";
-import { venueService } from "../services/api/venueService";
-import { generalSettingsService } from "../services/api/generalSettingsService";
-import { GeneralSettings } from "../types/institutional";
-import { useAuthStore } from "../services/state/authStore";
+import { useInstitutionalStore } from "../services/state/institutionalStore";
 
 interface OptimizationParameter {
   checked: boolean;
   value: string;
 }
+
 interface OptimizationAlgo {
   checked: boolean;
   parameters: any;
 }
 
 const TABS = [
-  { id: "general", label: "General Orchestration", icon: "🌐" },
+  { id: "general", label: "Academic Engine Context", icon: "🎓" },
   { id: "constraint", label: "Constraint Settings", icon: "🔒" },
   { id: "examination", label: "Examination Settings", icon: "📝" },
   { id: "output", label: "Output Settings", icon: "🖨️" },
@@ -63,29 +62,6 @@ const OPTIMIZATION_OPTS = [
   },
 ];
 
-// Mock data for courses and venues (in production, these come from API)
-const mockCourses = [
-  { code: "CHM102", title: "Chemistry II - Organic Chemistry" },
-  { code: "CHM101", title: "Chemistry I - General Chemistry" },
-  { code: "PHY101", title: "Physics I - Mechanics" },
-  { code: "PHY102", title: "Physics II - Waves & Light" },
-  { code: "MTH101", title: "Mathematics I - Calculus" },
-  { code: "MTH102", title: "Mathematics II - Linear Algebra" },
-  { code: "CSC101", title: "Computer Science I - Programming" },
-  { code: "CSC102", title: "Computer Science II - Data Structures" },
-  { code: "GST101", title: "General Studies I" },
-  { code: "GST102", title: "General Studies II" },
-];
-
-const mockVenues = [
-  { code: "ELT", name: "Electronics Laboratory" },
-  { code: "LAB", name: "Science Laboratory" },
-  { code: "HAL", name: "Lecture Hall A" },
-  { code: "OFF", name: "Office Complex" },
-  { code: "GYM", name: "Sports Complex" },
-  { code: "AUDI", name: "Main Auditorium" },
-];
-
 /**
  * Institutional Configuration Page
  * Refactored from the SettingsPanel modal to a first-class page.
@@ -94,145 +70,86 @@ const mockVenues = [
 const SettingsPage: React.FC = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.roleCode === "AD" || user?.roleId === 1;
+
+  // Global Context Store & Persistent Orchestration
+  const {
+    topology,
+    activeGS,
+    setActiveGs,
+    setConstraintId,
+    selectedConstraintId,
+    setExclusionId,
+  } = useInstitutionalStore();
+
+  // Filter tabs based on role - only Admin has access to all except health
+  const filteredTabs = TABS.filter((tab) => isAdmin || tab.id === "health");
+
   const [activeTab, setActiveTab] = useState<string>(
     isAdmin ? "general" : "health",
   );
 
-  // Filter tabs: Admin sees all, Others see ONLY Health & Integrity
-  const visibleTabs = isAdmin
-    ? TABS
-    : TABS.filter((tab) => tab.id === "health");
-
-  // General Orchestration State
+  // General Settings State - Hydrate from store if available, else use defaults
   const [generalSettings, setGeneralSettings] = useState<
     Partial<GeneralSettings>
-  >({
-    daysPerWeek: 5,
-    periodsPerDay: 8,
-    semester: "",
-    session: "",
-    startDate: "",
-    endDate: "",
-    examCategory: "Regular",
-    campusType: "Single",
-    examLevel: "All",
-    examWeeks: 2,
-  });
-  const [generalHistory, setGeneralHistory] = useState<GeneralSettings[]>([]);
-  const [constraintHistory, setConstraintHistory] = useState<any[]>([]);
-  const [currentConstraints, setCurrentConstraints] = useState<
-    Record<string, string>
-  >({});
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [showGeneralHistoryModal, setShowGeneralHistoryModal] = useState(false);
+  >(
+    activeGS
+      ? {
+          ...activeGS,
+          description: activeGS.description || "Institutional_Draft_v1",
+        }
+      : {
+          description: "Configuration_1",
+          session: "",
+          semester: "1",
+          daysPerWeek: 5,
+          periodsPerDay: 5,
+          startDate: "",
+          endDate: "",
+          examCategory: "0",
+          campusType: "0",
+          examLevel: "100,200,300,400,500",
+          examWeeks: 2,
+        },
+  );
+
   const [courses, setCourses] = useState<any[]>([]);
   const [venues, setVenues] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
+  const [initialConstraints, setInitialConstraints] = useState<
+    Record<string, string>
+  >({});
+  const [periodMapping, setPeriodMapping] =
+    useState<PeriodMappingResponse | null>(null);
+  const [excludedPeriods, setExcludedPeriods] = useState<number[]>([]);
 
-  React.useEffect(() => {
-    if (isAdmin) {
-      loadGeneralSettings();
-      loadLatestConstraints();
-      loadAssets();
-    }
-  }, [isAdmin]);
-
-  const loadAssets = async () => {
-    try {
-      const [courseData, venueData] = await Promise.all([
-        courseService.getAll(),
-        venueService.getAll(),
-      ]);
-      setCourses(courseData);
-      setVenues(venueData);
-    } catch (error) {
-      console.error("Failed to load assets", error);
-    }
-  };
-
-  const loadLatestConstraints = async () => {
-    try {
-      const data = await constraintService.getLatest();
-      if (data) {
-        // Remove ID and Date from the mapping
-        const { id, date, name, ...rest } = data as any;
-        setCurrentConstraints(rest);
-      }
-    } catch (err) {
-      console.error("Failed to load constraints", err);
-    }
-  };
-
-  const loadGeneralSettings = async () => {
-    try {
-      const data = await generalSettingsService.get();
-      if (data) {
-        setGeneralSettings(data);
-      }
-    } catch (error) {
-      console.error("Failed to load general settings", error);
-    }
-  };
-
-  // Automated Exam Duration Calculation
-  React.useEffect(() => {
+  // Automatic Week Computation: "Floored up" duration calculation
+  useEffect(() => {
     if (generalSettings.startDate && generalSettings.endDate) {
       const start = new Date(generalSettings.startDate);
       const end = new Date(generalSettings.endDate);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const weeks = Math.ceil(diffDays / 7);
 
-      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        const diffTime = end.getTime() - start.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Inclusive
-        if (diffDays > 0) {
-          const calculatedWeeks = Math.ceil(diffDays / 7);
-          if (generalSettings.examWeeks !== calculatedWeeks) {
-            setGeneralSettings((prev) => ({
-              ...prev,
-              examWeeks: calculatedWeeks,
-            }));
-          }
-        }
+      if (generalSettings.examWeeks !== weeks) {
+        setGeneralSettings((prev) => ({ ...prev, examWeeks: weeks }));
       }
     }
   }, [generalSettings.startDate, generalSettings.endDate]);
 
-  const loadGeneralHistory = async () => {
-    setIsLoadingHistory(true);
-    try {
-      const data = await generalSettingsService.getHistory();
-      setGeneralHistory(data);
-      setShowGeneralHistoryModal(true);
-    } catch (error) {
-      console.error("Failed to load general history", error);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
+  // Functional Dirty Check: Description is locked until a parameter changes
+  const isFunctionalDirty =
+    !activeGS ||
+    generalSettings.session !== activeGS.session ||
+    generalSettings.semester !== activeGS.semester ||
+    generalSettings.daysPerWeek !== activeGS.daysPerWeek ||
+    generalSettings.periodsPerDay !== activeGS.periodsPerDay ||
+    generalSettings.startDate !== activeGS.startDate ||
+    generalSettings.endDate !== activeGS.endDate ||
+    generalSettings.examCategory !== activeGS.examCategory ||
+    generalSettings.campusType !== activeGS.campusType ||
+    generalSettings.examLevel !== activeGS.examLevel;
 
-  const loadConstraintHistory = async () => {
-    setIsLoadingHistory(true);
-    try {
-      const data = await constraintService.getHistory();
-      setConstraintHistory(data);
-    } catch (error) {
-      console.error("Failed to load constraint history", error);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
-
-  const saveGeneralSettings = async (e: FormEvent) => {
-    e.preventDefault();
-    try {
-      await generalSettingsService.update(generalSettings);
-      toast.success("Academic configuration saved successfully");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save configuration");
-    }
-  };
-
-  const [constraints, setConstraints] = useState<
-    Record<string, { checked: boolean; values: string[] }>
-  >({});
   const [optimize, setOptimize] = useState<Record<string, OptimizationAlgo>>({
     tabuSearch: { checked: false, parameters: {} },
     geneticAlgorithm: {
@@ -255,45 +172,230 @@ const SettingsPage: React.FC = () => {
   const [examLevel, setExamLevel] = useState("");
 
   // Output State
+  // Output States (Simplified to remove unused markers)
   const [mixExams, setMixExams] = useState(false);
   const [moreSpace, setMoreSpace] = useState(false);
-  const [largeExam, setLargeExam] = useState(false);
   const [halfSpace, setHalfSpace] = useState(false);
   const [skipWeek, setSkipWeek] = useState(false);
-  const [sitting, setSitting] = useState(false);
-  const [studentStaff, setStudentStaff] = useState("");
-  const [staffInv, setStaffInv] = useState("");
   const [staffRandom, setStaffRandom] = useState(false);
-  const [staffUpdate, setStaffUpdate] = useState(false);
-  const [saveTTc, setSaveTTc] = useState(false);
-  const [saveTTp, setSaveTTp] = useState(false);
 
   // General Optimization State
-  const [displayProg, setDisplayProg] = useState(false);
-  const [optTime, setOptTime] = useState("");
-  const [optCount, setOptCount] = useState("");
+  // Optimization Meta (Simplified)
+
+  // Functional Dirty Checks for other sections
+  const isExamDirty =
+    examPolicy !== "" || maxExamL !== "" || minExamL !== "" || examLevel !== "";
+
+  const [initialOutputSettings, setInitialOutputSettings] = useState({
+    mixExams: false,
+    moreSpace: false,
+    halfSpace: false,
+    skipWeek: false,
+  });
+  const isOutputDirty =
+    mixExams !== initialOutputSettings.mixExams ||
+    moreSpace !== initialOutputSettings.moreSpace ||
+    halfSpace !== initialOutputSettings.halfSpace ||
+    skipWeek !== initialOutputSettings.skipWeek;
+
+  const isOptimizationDirty = Object.values(optimize).some((v) => v.checked);
 
   // Health & Heartbeat State
   const [healthData, setHealthData] = useState<Record<string, any>>({});
   const [checkingHealth, setCheckingHealth] = useState(false);
 
+  // General History State
+  const [generalHistory, setGeneralHistory] = useState<GeneralSettings[]>([]);
+  const [showGeneralHistory, setShowGeneralHistory] = useState(false);
+  const [isLoadingGeneralHistory, setIsLoadingGeneralHistory] = useState(false);
+
+  useEffect(() => {
+    if (isAdmin) {
+      const loadInitialData = async () => {
+        try {
+          const [
+            gs,
+            latestConstraints,
+            exclusionsData,
+            coursesData,
+            venuesData,
+            staffData,
+            mappingData,
+          ] = await Promise.all([
+            generalSettingsService.get(),
+            constraintService.getLatest(),
+            periodExclusionService.getActiveExclusions(),
+            fetch(
+              `http://localhost:8080/course/get?username=${user?.username || "admin1"}`,
+            ).then((res) => res.json()),
+            fetch(
+              `http://localhost:8080/venue/get?username=${user?.username || "admin1"}`,
+              {
+                headers: {
+                  "X-Actor-Username": user?.username || "admin1",
+                },
+              },
+            ).then((res) => res.json()),
+            fetch(
+              `http://localhost:8080/staff/get?username=${user?.username || "admin1"}`,
+              {
+                headers: {
+                  "X-Actor-Username": user?.username || "admin1",
+                },
+              },
+            ).then((res) => res.json()),
+            periodExclusionService.getMapping(),
+          ]);
+
+          if (gs) {
+            setGeneralSettings(gs);
+            // If we have an active session in the store, ensure the local UI is in sync
+            // but we stop short of 'lock-in' promotion to satisfy cold-start
+            if (activeGS?.id === gs.id) {
+              // Already in sync
+            }
+          }
+          if (Array.isArray(coursesData)) setCourses(coursesData);
+          if (Array.isArray(venuesData)) setVenues(venuesData);
+          if (Array.isArray(staffData)) setStaff(staffData);
+          if (mappingData) {
+            setPeriodMapping(mappingData);
+            const systemLocked = mappingData.periods
+              .filter((p: any) => p.isSystemLocked)
+              .map((p: any) => p.periodIndex);
+
+            const baseExclusions = exclusionsData?.excludedPeriods || [];
+            const merged = Array.from(
+              new Set([...baseExclusions, ...systemLocked]),
+            );
+            setExcludedPeriods(merged);
+          } else if (exclusionsData) {
+            setExcludedPeriods(exclusionsData.excludedPeriods || []);
+          }
+
+          if (latestConstraints) {
+            // setConstraintId(latestConstraints.id || null); // REMOVED: Selection must be manual/reviewed
+            const formatted: Record<string, string> = {
+              periodIncE: latestConstraints.periodIncE || "",
+              periodExcE: latestConstraints.periodExcE || "",
+              venueIncE: latestConstraints.venueIncE || "",
+              venueExcE: latestConstraints.venueExcE || "",
+              periodIncV: latestConstraints.periodIncV || "",
+              periodExcV: latestConstraints.periodExcV || "",
+              examWAftE: latestConstraints.examWAftE || "",
+              examExcE: latestConstraints.examExcE || "",
+              examWCoinE: latestConstraints.examWCoinE || "",
+              frontLE: latestConstraints.frontLE || "",
+              staffOmit: latestConstraints.staffOmit || "",
+              staffPeriodExcl: latestConstraints.staffPeriodExcl || "",
+            };
+            setInitialConstraints(formatted);
+          }
+        } catch (error) {
+          console.error("Failed to load initial settings data", error);
+        }
+      };
+      loadInitialData();
+    }
+  }, [isAdmin, user?.username]);
+
+  const handleGeneralSettingsSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await generalSettingsService.update(generalSettings as GeneralSettings);
+      setActiveGs(generalSettings); // Sync to global store on manual save
+
+      // Refresh context-dependent data (Mapping & Exclusions)
+      const [newMapping, newExclusions] = await Promise.all([
+        periodExclusionService.getMapping(generalSettings.id),
+        periodExclusionService.getActiveExclusions(generalSettings.id),
+      ]);
+      setPeriodMapping(newMapping);
+      if (newMapping) {
+        const systemLocked = newMapping.periods
+          .filter((p: any) => p.isSystemLocked)
+          .map((p: any) => p.periodIndex);
+        const baseExclusions = newExclusions?.excludedPeriods || [];
+        setExcludedPeriods(
+          Array.from(new Set([...baseExclusions, ...systemLocked])),
+        );
+      }
+
+      toast.success(
+        "Academic engine orchestration parameters updated and locked.",
+      );
+      // Refresh history after update
+      if (isAdmin) loadGeneralHistory();
+    } catch (error) {
+      toast.error("Failed to synchronize engine parameters");
+    }
+  };
+
+  const loadGeneralHistory = async () => {
+    setIsLoadingGeneralHistory(true);
+    try {
+      const history = await generalSettingsService.getHistory();
+      setGeneralHistory(history);
+    } catch (error) {
+      console.error("Failed to load general history", error);
+    } finally {
+      setIsLoadingGeneralHistory(false);
+    }
+  };
+
+  const restoreGeneralSnapshot = (gs: GeneralSettings) => {
+    setGeneralSettings(gs);
+    setActiveGs(gs); // Sync to global store immediately on restore
+    setShowGeneralHistory(false);
+    toast.info(`Restored version from ${gs.session} session`);
+  };
+
+  const fetchConstraintHistory = async () => {
+    return await constraintService.getHistory();
+  };
+
   const fetchHealth = async () => {
     setCheckingHealth(true);
     const endpoints = [
-      { id: "staff", name: "Personnel Ledger", service: staffService },
-      { id: "student", name: "Student Registry", service: studentService },
-      { id: "course", name: "Curriculum Assets", service: courseService },
-      { id: "venue", name: "Infrastructure Portfolio", service: venueService },
+      {
+        id: "staff",
+        url: "http://localhost:8080/staff/get",
+        name: "Personnel Ledger",
+      },
+      {
+        id: "student",
+        url: "http://localhost:8080/student/get",
+        name: "Student Registry",
+      },
+      {
+        id: "course",
+        url: "http://localhost:8080/course/get",
+        name: "Curriculum Assets",
+      },
+      {
+        id: "venue",
+        url: "http://localhost:8080/venue/get",
+        name: "Infrastructure Portfolio",
+      },
     ];
 
     const results: Record<string, any> = {};
+    const username = localStorage.getItem("username") || "admin";
 
     for (const ep of endpoints) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
       try {
-        const data = await ep.service.getAll();
+        const url =
+          ep.id === "venue" ? ep.url : `${ep.url}?username=${username}`;
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        const data = await res.json();
         results[ep.id] = {
-          status: "Connected",
-          ok: true,
+          status: res.ok ? "Connected" : "Offline",
+          ok: res.ok,
           name: ep.name,
           count: Array.isArray(data) ? data.length : 0,
         };
@@ -312,6 +414,23 @@ const SettingsPage: React.FC = () => {
     toast.info("Institutional health audit complete");
   };
 
+  // New save function for refactored constraints section
+  const saveConstraintsToDB = async (constraints: Record<string, string>) => {
+    try {
+      // Use the service to handle the save with correct endpoint/actor mapping
+      const result = await constraintService.saveAll(constraints);
+      // Backend returns the new record on save, but if not we trigger a reload
+      const latest = await constraintService.getLatest();
+      if (latest) setConstraintId(latest.id || null);
+
+      toast.success("Institutional constraint snapshot saved successfully");
+      return Promise.resolve();
+    } catch (error) {
+      toast.error("Failed to persist constraint snapshot");
+      return Promise.reject(error);
+    }
+  };
+
   const handleOptimizationToggle = (key: string) => {
     setOptimize((prev) => ({
       ...prev,
@@ -322,44 +441,23 @@ const SettingsPage: React.FC = () => {
     }));
   };
 
-  // New save function for refactored constraints section
-  const saveConstraintsToDB = async (constraints: Record<string, string>) => {
-    try {
-      // Prepare data in the format expected by the backend
-      const constraintData: any = {
-        periodIncE: constraints.periodIncE || "",
-        periodExcE: constraints.periodExcE || "",
-        venueIncE: constraints.venueIncE || "",
-        venueExcE: constraints.venueExcE || "",
-        periodIncV: constraints.periodIncV || "",
-        periodExcV: constraints.periodExcV || "",
-        examWAftE: constraints.examWAftE || "",
-        examExcE: constraints.examExcE || "",
-      };
-
-      await constraintService.saveAll(constraintData);
-      toast.success("All institutional constraints saved successfully");
-      return Promise.resolve();
-    } catch (error: any) {
-      toast.error(
-        error.message || "Failed to save constraints to institutional ledger",
-      );
-      return Promise.reject(error);
-    }
-  };
-
   const saveExamSettings = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await examSettingsService.create({
-        schedule_policy: examPolicy,
-        max_examl: maxExamL,
-        min_examl: minExamL,
-        exam_level_high_limit: examLevel,
+      const res = await fetch("http://localhost:8080/examtab/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schedule_policy: examPolicy,
+          max_examl: maxExamL,
+          min_examl: minExamL,
+          exam_level_high_limit: examLevel,
+        }),
       });
-      toast.success("Academic examination boundaries established");
-    } catch (error: any) {
-      toast.error(error.message || "Boundary synchronization failed");
+      if (res.ok) toast.success("Academic examination boundaries established");
+      else toast.error("Boundary synchronization failed");
+    } catch (error) {
+      toast.error("Critical failure during exam setting save");
     }
   };
 
@@ -380,7 +478,7 @@ const SettingsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         {/* Navigation Column */}
         <div className="lg:col-span-1 space-y-2">
-          {visibleTabs.map((tab) => (
+          {filteredTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -412,314 +510,295 @@ const SettingsPage: React.FC = () => {
               exit={{ opacity: 0, x: -10 }}
               className="bg-surface p-6 rounded-institutional border border-brick/10 shadow-sm"
             >
-              {activeTab === "general" && (
+              {activeTab === "general" && isAdmin && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 border-b border-brick/5 pb-3">
-                    <FiActivity className="text-brick text-lg" />
+                    <FiDatabase className="text-brick text-lg" />
                     <h2 className="text-xs font-black uppercase tracking-widest text-brick">
-                      Global Configuration
+                      General Orchestration
                     </h2>
+                    <div className="flex-1" />
+                    <button
+                      onClick={() => {
+                        setShowGeneralHistory(true);
+                        loadGeneralHistory();
+                      }}
+                      className="text-[10px] font-black uppercase tracking-widest text-institutional-muted border-b border-dashed border-institutional-muted hover:text-brick hover:border-brick transition-all flex items-center gap-1"
+                    >
+                      <FiRotateCcw size={10} />
+                      View Version History
+                    </button>
                   </div>
                   <form
-                    onSubmit={saveGeneralSettings}
+                    onSubmit={handleGeneralSettingsSubmit}
                     className="grid grid-cols-1 md:grid-cols-2 gap-6"
                   >
-                    {/* Academic Framework */}
-                    <div className="col-span-2 md:col-span-1 space-y-4">
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-institutional-muted">
-                        Academic Framework
-                      </h3>
-                      <div className="input-group">
-                        <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                          Academic Session
+                    <div className="input-group col-span-1 md:col-span-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
+                          Configuration Title / Description
                         </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 2025/2026"
-                          className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
-                          value={generalSettings.session || ""}
-                          onChange={(e) =>
-                            setGeneralSettings({
-                              ...generalSettings,
-                              session: e.target.value,
-                            })
-                          }
-                        />
                       </div>
-                      <div className="input-group">
-                        <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                          Semester
-                        </label>
-                        <select
-                          className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
-                          value={generalSettings.semester || ""}
-                          onChange={(e) =>
-                            setGeneralSettings({
-                              ...generalSettings,
-                              semester: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="">Select Semester</option>
-                          <option value="1">1st Semester (Harmattan)</option>
-                          <option value="2">2nd Semester (Rain)</option>
-                        </select>
-                      </div>
+                      <input
+                        type="text"
+                        disabled={!isFunctionalDirty}
+                        className={`w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm outline-none transition-all ${
+                          !isFunctionalDirty
+                            ? "opacity-50 cursor-not-allowed bg-brick/5"
+                            : "focus:border-brick"
+                        }`}
+                        value={generalSettings.description || ""}
+                        onChange={(e) =>
+                          setGeneralSettings((prev) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g., Harmattan Regular Session Alpha Run"
+                      />
                     </div>
-
-                    {/* Load Determinants */}
-                    <div className="col-span-2 md:col-span-1 space-y-4">
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-institutional-muted">
-                        Load Dimensions
-                      </h3>
-                      <div className="input-group">
-                        <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                          Days Per Week
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="7"
-                          className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
-                          value={generalSettings.daysPerWeek || 7}
-                          onChange={(e) =>
-                            setGeneralSettings({
-                              ...generalSettings,
-                              daysPerWeek: parseInt(e.target.value),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="input-group">
-                        <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                          Periods Per Day
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="12"
-                          className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
-                          value={generalSettings.periodsPerDay || 2}
-                          onChange={(e) =>
-                            setGeneralSettings({
-                              ...generalSettings,
-                              periodsPerDay: parseInt(e.target.value),
-                            })
-                          }
-                        />
-                      </div>
+                    <div className="input-group">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                        Academic Session
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                        value={generalSettings.session}
+                        onChange={(e) =>
+                          setGeneralSettings((prev) => ({
+                            ...prev,
+                            session: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g., 2024/2025"
+                      />
                     </div>
-
-                    {/* Temporal Constraints */}
-                    <div className="col-span-2 space-y-4 border-t border-brick/5 pt-4">
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-institutional-muted">
-                        Temporal Constraints
-                      </h3>
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="input-group">
-                          <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                            Commencement Date
-                          </label>
-                          <input
-                            type="date"
-                            className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
-                            value={
-                              generalSettings.startDate
-                                ?.toString()
-                                .split("T")[0] || ""
-                            }
-                            onChange={(e) =>
-                              setGeneralSettings({
-                                ...generalSettings,
-                                startDate: e.target.value,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="input-group">
-                          <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                            Termination Date
-                          </label>
-                          <input
-                            type="date"
-                            className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
-                            value={
-                              generalSettings.endDate
-                                ?.toString()
-                                .split("T")[0] || ""
-                            }
-                            onChange={(e) =>
-                              setGeneralSettings({
-                                ...generalSettings,
-                                endDate: e.target.value,
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Advanced Institutional Context */}
-                    <div className="col-span-2 space-y-4 border-t border-brick/5 pt-4">
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-institutional-muted">
-                        Institutional Calibration
-                      </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        <div className="input-group">
-                          <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                            Exam Category
-                          </label>
-                          <select
-                            className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
-                            value={generalSettings.examCategory || "Regular"}
-                            onChange={(e) =>
-                              setGeneralSettings({
-                                ...generalSettings,
-                                examCategory: e.target.value,
-                              })
-                            }
-                          >
-                            <option value="Regular">Regular</option>
-                            <option value="TopUp">TopUp</option>
-                            <option value="Part-Time">Part-Time</option>
-                            <option value="Online">Online</option>
-                          </select>
-                        </div>
-                        <div className="input-group">
-                          <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                            Campus Type
-                          </label>
-                          <select
-                            className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
-                            value={generalSettings.campusType || "Single"}
-                            onChange={(e) =>
-                              setGeneralSettings({
-                                ...generalSettings,
-                                campusType: e.target.value,
-                              })
-                            }
-                          >
-                            <option value="Single">Single Campus</option>
-                            <option value="Multi">Multi-Campus</option>
-                          </select>
-                        </div>
-                        <div className="input-group">
-                          <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                            Exam Level
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. 100,200 or All"
-                            className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
-                            value={generalSettings.examLevel || "All"}
-                            onChange={(e) =>
-                              setGeneralSettings({
-                                ...generalSettings,
-                                examLevel: e.target.value,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="input-group">
-                          <label className="block text-[10px] font-bold uppercase text-institutional-secondary mb-1">
-                            Calculated Duration
-                          </label>
-                          <div className="w-full bg-brick/5 border border-brick/10 px-4 py-3 rounded font-black text-brick text-sm flex items-center justify-between">
-                            <span>{generalSettings.examWeeks || 0} WEEKS</span>
-                            <span className="text-[9px] opacity-60 uppercase">
-                              Auto-Calibrated
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="col-span-2 pt-4 border-t border-brick/5 flex justify-between items-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          loadGeneralHistory();
-                          setShowGeneralHistoryModal(true);
-                        }}
-                        className="text-[10px] font-black uppercase tracking-widest text-institutional-muted border-b border-dashed border-institutional-muted hover:text-brick hover:border-brick transition-all"
+                    <div className="input-group">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                        Semester Cycle
+                      </label>
+                      <select
+                        className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                        value={generalSettings.semester}
+                        onChange={(e) =>
+                          setGeneralSettings((prev) => ({
+                            ...prev,
+                            semester: e.target.value,
+                          }))
+                        }
                       >
-                        {generalHistory.length > 0
-                          ? "Open History Modal"
-                          : "View History"}
-                      </button>
-                      {isAdmin && (
+                        <option value="1">Harmattan (1st Semester)</option>
+                        <option value="2">Rain (2nd Semester)</option>
+                      </select>
+                    </div>
+                    <div className="input-group">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                        Days Per Week
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="7"
+                        className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                        value={generalSettings.daysPerWeek}
+                        onChange={(e) =>
+                          setGeneralSettings((prev) => ({
+                            ...prev,
+                            daysPerWeek: parseInt(e.target.value),
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="input-group">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                        Periods Per Day
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="5"
+                        className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                        value={generalSettings.periodsPerDay}
+                        onChange={(e) =>
+                          setGeneralSettings((prev) => ({
+                            ...prev,
+                            periodsPerDay: parseInt(e.target.value),
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="input-group">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                        value={generalSettings.startDate}
+                        onChange={(e) =>
+                          setGeneralSettings((prev) => ({
+                            ...prev,
+                            startDate: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="input-group">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                        value={generalSettings.endDate}
+                        onChange={(e) =>
+                          setGeneralSettings((prev) => ({
+                            ...prev,
+                            endDate: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="input-group">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                        Examination Category
+                      </label>
+                      <select
+                        className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                        value={generalSettings.examCategory}
+                        onChange={(e) =>
+                          setGeneralSettings((prev) => ({
+                            ...prev,
+                            examCategory: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="0">Regular</option>
+                        <option value="1">TopUp</option>
+                        <option value="2">Part-Time</option>
+                        <option value="3">Online</option>
+                      </select>
+                    </div>
+
+                    <div className="input-group">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                        Campus Type
+                      </label>
+                      <select
+                        className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                        value={generalSettings.campusType}
+                        onChange={(e) =>
+                          setGeneralSettings((prev) => ({
+                            ...prev,
+                            campusType: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="0">Single Campus</option>
+                        <option value="1">Multi Campus</option>
+                      </select>
+                    </div>
+
+                    <div className="input-group col-span-1 md:col-span-2">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-4">
+                        Examination Level (Filtered)
+                      </label>
+                      <div className="flex flex-wrap gap-4 bg-brick/5 p-4 rounded-institutional border border-brick/10">
+                        {["100", "200", "300", "400", "500"].map((level) => (
+                          <label
+                            key={level}
+                            className="flex items-center gap-2 cursor-pointer group"
+                          >
+                            <div className="relative flex items-center">
+                              <input
+                                type="checkbox"
+                                className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-brick/20 bg-white checked:bg-brick checked:border-brick transition-all shadow-sm"
+                                checked={generalSettings.examLevel
+                                  ?.split(",")
+                                  .includes(level)}
+                                onChange={(e) => {
+                                  let currentLevels =
+                                    generalSettings.examLevel
+                                      ?.split(",")
+                                      .filter(Boolean) || [];
+
+                                  if (e.target.checked) {
+                                    if (!currentLevels.includes(level))
+                                      currentLevels.push(level);
+                                  } else {
+                                    currentLevels = currentLevels.filter(
+                                      (l) => l !== level,
+                                    );
+                                  }
+
+                                  const newVal =
+                                    currentLevels.length === 5
+                                      ? "100,200,300,400,500"
+                                      : currentLevels.join(",");
+                                  setGeneralSettings((prev) => ({
+                                    ...prev,
+                                    examLevel: newVal,
+                                  }));
+                                }}
+                              />
+                              <FiCheckCircle className="absolute inset-0 m-auto h-3 w-3 text-white scale-0 peer-checked:scale-100 transition-transform pointer-events-none" />
+                            </div>
+                            <span className="text-xs font-bold text-institutional-primary group-hover:text-brick transition-all">
+                              L{level}
+                            </span>
+                          </label>
+                        ))}
+                        <div className="w-[1px] h-4 bg-brick/20 mx-2" />
                         <button
-                          type="submit"
-                          className="px-8 py-3 bg-brick text-white text-[10px] font-black uppercase tracking-widest rounded shadow-lg shadow-brick/20 hover:scale-105 transition-all"
+                          type="button"
+                          onClick={() =>
+                            setGeneralSettings((prev) => ({
+                              ...prev,
+                              examLevel:
+                                prev.examLevel === "100,200,300,400,500"
+                                  ? ""
+                                  : "100,200,300,400,500",
+                            }))
+                          }
+                          className="text-[10px] font-black uppercase tracking-widest text-brick hover:underline"
                         >
-                          Save Configuration
+                          {generalSettings.examLevel === "100,200,300,400,500"
+                            ? "Clear Selection"
+                            : "Select All"}
                         </button>
-                      )}
+                      </div>
+                    </div>
+
+                    <div className="input-group">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                        Computed Duration (Weeks)
+                      </label>
+                      <div className="w-full bg-brick/5 border border-brick/10 px-4 py-3 rounded font-black text-sm text-brick flex items-center gap-2">
+                        <FiActivity className="animate-pulse" />
+                        {generalSettings.examWeeks || 0} Week(s) Active
+                      </div>
+                      <p className="text-[9px] text-institutional-muted mt-1 italic">
+                        Automatically derived from date range (Locked).
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 col-span-2 mt-4">
+                      <button
+                        type="submit"
+                        className="px-10 py-3 bg-brick text-white text-[10px] font-black uppercase tracking-widest rounded shadow-lg shadow-brick/20 hover:scale-105 transition-all"
+                      >
+                        Commit General Parameters
+                      </button>
                     </div>
                   </form>
-
-                  {/* General History Modal */}
-                  {showGeneralHistoryModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                      <div className="bg-page rounded-lg shadow-xl w-full max-w-md p-6 space-y-4 border border-brick/10">
-                        <div className="flex items-center justify-between border-b border-brick/5 pb-3">
-                          <h3 className="text-[10px] font-black uppercase tracking-widest text-institutional-muted">
-                            Snapshot History (Latest First)
-                          </h3>
-                          <button
-                            onClick={() => setShowGeneralHistoryModal(false)}
-                            className="text-institutional-muted hover:text-brick transition-colors"
-                          >
-                            <FiX size={18} />
-                          </button>
-                        </div>
-                        {generalHistory.length === 0 ? (
-                          <p className="text-sm text-institutional-muted text-center py-4">
-                            No history found.
-                          </p>
-                        ) : (
-                          <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2">
-                            {generalHistory.map((h) => (
-                              <div
-                                key={h.id}
-                                className="flex items-center justify-between p-3 bg-surface border border-brick/5 rounded group hover:border-brick/20 transition-all"
-                              >
-                                <div className="flex flex-col">
-                                  <span className="text-xs font-bold text-institutional-primary">
-                                    {h.session} -{" "}
-                                    {h.semester === "1" ? "Harmattan" : "Rain"}
-                                  </span>
-                                  <span className="text-[9px] text-institutional-muted font-medium">
-                                    ID: {h.id} • {h.examCategory} •{" "}
-                                    {h.examWeeks} Weeks
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={() => {
-                                    setGeneralSettings(h);
-                                    toast.info(
-                                      `Loaded configuration from ID: ${h.id}`,
-                                    );
-                                    setShowGeneralHistoryModal(false); // Close modal after restoring
-                                  }}
-                                  className="px-3 py-1 bg-brick/5 text-brick text-[9px] font-black uppercase tracking-widest rounded hover:bg-brick hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                                >
-                                  Restore
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
-              {activeTab === "constraint" && (
+              {activeTab === "constraint" && isAdmin && (
                 <InstitutionalConstraintsSection
                   onSaveAll={saveConstraintsToDB}
-                  onLoadHistory={constraintService.getHistory}
+                  onLoadHistory={fetchConstraintHistory}
                   availableCourses={courses.map((c) => ({
                     code: c.code,
                     title: c.title,
@@ -728,13 +807,19 @@ const SettingsPage: React.FC = () => {
                     code: v.venueCode,
                     name: v.name,
                   }))}
-                  maxPeriods={10}
-                  initialConstraints={currentConstraints}
-                  readOnly={!isAdmin}
+                  availableStaff={(staff || []).map((s) => ({
+                    code: s.staffId || s.id?.toString() || "STAFF",
+                    title:
+                      `${s.title || ""} ${s.surname || ""} ${s.firstname || ""}`.trim(),
+                  }))}
+                  maxPeriods={topology.periodsPerDay}
+                  periodMapping={periodMapping}
+                  excludedPeriods={excludedPeriods}
+                  initialConstraints={initialConstraints}
                 />
               )}
 
-              {activeTab === "examination" && (
+              {activeTab === "examination" && isAdmin && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 border-b border-brick/5 pb-3">
                     <FiCheckCircle className="text-brick text-lg" />
@@ -769,20 +854,23 @@ const SettingsPage: React.FC = () => {
                       />
                     </div>
                     <div className="flex items-center gap-3 col-span-2">
-                      {isAdmin && (
-                        <button
-                          type="submit"
-                          className="px-10 py-3 bg-brick text-white text-[10px] font-black uppercase tracking-widest rounded shadow-lg shadow-brick/20 hover:scale-105 transition-all"
-                        >
-                          Authorize Parameters
-                        </button>
-                      )}
+                      <button
+                        type="submit"
+                        disabled={!isExamDirty}
+                        className={`px-10 py-3 text-white text-[10px] font-black uppercase tracking-widest rounded shadow-lg transition-all ${
+                          !isExamDirty
+                            ? "bg-brick/20 cursor-not-allowed"
+                            : "bg-brick shadow-brick/20 hover:scale-105"
+                        }`}
+                      >
+                        Authorize Parameters
+                      </button>
                     </div>
                   </form>
                 </div>
               )}
 
-              {activeTab === "output" && (
+              {activeTab === "output" && isAdmin && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 border-b border-brick/5 pb-3">
                     <FiDownload className="text-brick text-lg" />
@@ -801,11 +889,6 @@ const SettingsPage: React.FC = () => {
                         label: "Global Space Optimization",
                         checked: moreSpace,
                         setter: setMoreSpace,
-                      },
-                      {
-                        label: "Buffer Management (50%)",
-                        checked: halfSpace,
-                        setter: setHalfSpace,
                       },
                       {
                         label: "Skip Week Protocol",
@@ -829,10 +912,31 @@ const SettingsPage: React.FC = () => {
                       </label>
                     ))}
                   </div>
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-brick/5">
+                    <button
+                      onClick={() => {
+                        setInitialOutputSettings({
+                          mixExams,
+                          moreSpace,
+                          halfSpace,
+                          skipWeek,
+                        });
+                        toast.success("Output projections authorized");
+                      }}
+                      disabled={!isOutputDirty}
+                      className={`px-10 py-3 text-white text-[10px] font-black uppercase tracking-widest rounded transition-all ${
+                        !isOutputDirty
+                          ? "bg-brick/20 cursor-not-allowed"
+                          : "bg-brick hover:scale-105"
+                      }`}
+                    >
+                      Commit Output Policy
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {activeTab === "optimization" && (
+              {activeTab === "optimization" && isAdmin && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 border-b border-brick/5 pb-3">
                     <FiSettings className="text-brick text-lg" />
@@ -864,6 +968,21 @@ const SettingsPage: React.FC = () => {
                         </label>
                       </div>
                     ))}
+                  </div>
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-brick/5">
+                    <button
+                      onClick={() => {
+                        toast.success("Mathematical orchestration committed.");
+                      }}
+                      disabled={!isOptimizationDirty}
+                      className={`px-10 py-3 text-white text-[10px] font-black uppercase tracking-widest rounded transition-all ${
+                        !isOptimizationDirty
+                          ? "bg-brick/20 cursor-not-allowed"
+                          : "bg-brick hover:scale-105"
+                      }`}
+                    >
+                      Commit Optimization Protocol
+                    </button>
                   </div>
                 </div>
               )}
@@ -1010,6 +1129,100 @@ const SettingsPage: React.FC = () => {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* General Settings History Modal */}
+      <AnimatePresence>
+        {showGeneralHistory && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-page rounded-institutional shadow-2xl w-full max-w-lg p-6 space-y-4 border border-brick/20 overflow-hidden"
+            >
+              <div className="flex justify-between items-center border-b border-brick/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-brick/5 rounded-full flex items-center justify-center">
+                    <FiRotateCcw className="text-brick" size={14} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-brick">
+                      Orchestration Log
+                    </h3>
+                    <p className="text-[9px] text-institutional-muted font-bold tracking-tight">
+                      Historical Parameter Snapshots
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowGeneralHistory(false)}
+                  className="p-2 hover:bg-brick/5 rounded-full transition-colors"
+                >
+                  <FiX className="text-institutional-muted" size={18} />
+                </button>
+              </div>
+
+              {isLoadingGeneralHistory ? (
+                <div className="py-20 text-center">
+                  <FiRefreshCw
+                    className="animate-spin text-brick mx-auto mb-4"
+                    size={24}
+                  />
+                  <p className="text-xs font-bold text-brick italic">
+                    Consulting historical archives...
+                  </p>
+                </div>
+              ) : generalHistory.length === 0 ? (
+                <div className="py-20 text-center opacity-40">
+                  <FiDatabase className="mx-auto mb-4" size={32} />
+                  <p className="text-sm font-bold">
+                    No historical snapshots found.
+                  </p>
+                </div>
+              ) : (
+                <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2 institutional-scroll">
+                  {generalHistory.map((gs) => (
+                    <div
+                      key={gs.id}
+                      className="flex justify-between items-center p-4 bg-surface border border-brick/5 rounded-institutional group hover:border-brick/20 transition-all shadow-sm"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-black text-brick uppercase tracking-tight">
+                            {gs.description || "Experimental_Context"}
+                          </p>
+                          <span className="text-[8px] px-1.5 py-0.5 bg-brick/10 text-brick rounded font-black">
+                            ID: {gs.id}
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-institutional-primary font-bold uppercase leading-tight">
+                          Session {gs.session} •{" "}
+                          {gs.semester === "1" ? "Harmattan" : "Rain"}
+                        </p>
+                        <p className="text-[8px] text-institutional-muted font-bold uppercase">
+                          {gs.daysPerWeek} Days • {gs.periodsPerDay} Periods
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => restoreGeneralSnapshot(gs)}
+                        className="px-4 py-2 bg-institutional-primary text-white text-[9px] font-black uppercase tracking-widest rounded shadow-institutional-sm hover:brightness-110 transition-all"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-brick/10 text-center">
+                <p className="text-[8px] text-institutional-muted font-black uppercase tracking-widest italic opacity-60">
+                  Bells University Registry Management System
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -74,6 +74,8 @@ public class Constraintcontroller {
         dto.setExamExcE(constraint.getExamExcE());
         dto.setExamWCoinE(constraint.getExamWCoinE());
         dto.setFrontLE(constraint.getFrontLE());
+        dto.setStaffOmit(constraint.getStaffOmit());
+        dto.setStaffPeriodExcl(constraint.getStaffPeriodExcl());
         return dto;
     }
 }

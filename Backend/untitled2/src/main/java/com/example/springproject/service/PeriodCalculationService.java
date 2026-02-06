@@ -24,13 +24,24 @@ public class PeriodCalculationService {
         int daysPerWeek = settings.getDaysPerWeek() != null ? settings.getDaysPerWeek() : 5;
         int periodsPerDay = settings.getPeriodsPerDay() != null ? settings.getPeriodsPerDay() : 3;
         
+        // MONDAY ANCHOR LOGIC
+        LocalDate anchorDate = startDate;
+        while (anchorDate.getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
+            anchorDate = anchorDate.minusDays(1);
+        }
+
         List<PeriodMapping> periods = new ArrayList<>();
         int periodIndex = 0;
-        LocalDate currentDate = startDate;
+        LocalDate currentDate = anchorDate; // Start generation from Anchor Monday
         int weekNumber = 1;
-        int dayInWeek = 0;
         
-        while (!currentDate.isAfter(endDate)) {
+        // Generate a 7-day matrix backbone for each week processed
+        // Continue loop until we cover the entire date range AND we finish the final week (reached next Monday)
+        while (!currentDate.isAfter(endDate) || currentDate.getDayOfWeek() != java.time.DayOfWeek.MONDAY) {
+            boolean isLocked = currentDate.isBefore(startDate) || currentDate.isAfter(endDate);
+            // DEBUG: Log locking logic
+            // System.out.println("Date: " + currentDate + " Start: " + startDate + " Locked: " + isLocked);
+            
             // Generate periods for this day
             for (int periodOfDay = 1; periodOfDay <= periodsPerDay; periodOfDay++) {
                 PeriodMapping mapping = new PeriodMapping();
@@ -40,17 +51,18 @@ public class PeriodCalculationService {
                 mapping.setDayOfWeek(currentDate.getDayOfWeek().toString());
                 mapping.setWeekNumber(weekNumber);
                 mapping.setPeriodOfDay(periodOfDay);
+                mapping.setIsSystemLocked(isLocked);
                 
                 periods.add(mapping);
                 periodIndex++;
             }
             
-            // Check if we've completed a week (Sunday is end of week)
+            // Week boundary (Sunday marks transition to next week index)
             if (currentDate.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
                 weekNumber++;
             }
 
-            // Move to next day
+            // Iterate to next day
             currentDate = currentDate.plusDays(1);
         }
         
@@ -65,13 +77,19 @@ public class PeriodCalculationService {
     }
 
     private LocalDate convertToLocalDate(Date dateToConvert) {
-        if (dateToConvert instanceof java.sql.Date) {
-            return ((java.sql.Date) dateToConvert).toLocalDate();
-        } else if (dateToConvert instanceof java.sql.Timestamp) {
-            return ((java.sql.Timestamp) dateToConvert).toLocalDateTime().toLocalDate();
+        if (dateToConvert == null) {
+            return LocalDate.now();
         }
-        return dateToConvert.toInstant()
-            .atZone(ZoneId.systemDefault())
-            .toLocalDate();
+        
+        // Robust conversion preserving face-value date components
+        // distinct from Instant/Timezone shifts
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.setTime(dateToConvert);
+        
+        return LocalDate.of(
+            cal.get(java.util.Calendar.YEAR), 
+            cal.get(java.util.Calendar.MONTH) + 1, 
+            cal.get(java.util.Calendar.DAY_OF_MONTH)
+        );
     }
 }

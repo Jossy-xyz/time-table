@@ -1,5 +1,7 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { periodExclusionService } from "../../services/api";
+import { useAuthStore } from "../../services/state/authStore";
+import { toast } from "react-toastify";
 import {
   PeriodMapping,
   PeriodMappingResponse,
@@ -7,8 +9,10 @@ import {
 } from "../../types/institutional";
 import { PeriodButton } from "./PeriodButton";
 import "./CalendarPeriodSelector.css";
+import { useInstitutionalStore } from "../../services/state/institutionalStore";
 
-import { FiRotateCcw, FiX } from "react-icons/fi";
+import { FiRotateCcw, FiX, FiDatabase } from "react-icons/fi";
+import ConfirmModal from "../molecules/ConfirmModal";
 
 interface CalendarGridProps {
   onSave?: () => void;
@@ -19,6 +23,12 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
   onSave,
   settingsId,
 }) => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.roleCode === "AD" || user?.roleId === 1;
+  const { setExclusionId, topology } = useInstitutionalStore();
+
+  // TODO: Enforce RBAC - implement full permission checks for CR, ST, DR here later
+
   const [mapping, setMapping] = useState<PeriodMappingResponse | null>(null);
   const [excludedIndices, setExcludedIndices] = useState<Set<number>>(
     new Set(),
@@ -36,10 +46,23 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
   );
   const [isRegistryOpen, setIsRegistryOpen] = useState(false);
 
+  // Modal State for custom confirm
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
   useEffect(() => {
     loadData();
     loadHistory();
-  }, [settingsId]);
+  }, [settingsId, topology.periodsPerDay, topology.daysPerWeek]);
 
   const loadData = async () => {
     setLoading(true);
@@ -47,10 +70,20 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
       const mapData = await periodExclusionService.getMapping(settingsId);
       setMapping(mapData);
 
+      // Identify system-locked periods from the mapping
+      const systemLockedIndices = mapData.periods
+        .filter((p) => p.isSystemLocked)
+        .map((p) => p.periodIndex);
+
       const activeData =
         await periodExclusionService.getActiveExclusions(settingsId);
       if (activeData) {
-        setExcludedIndices(new Set(activeData.excludedPeriods));
+        // Merge saved exclusions with current system-locked indices
+        const mergedExclusions = new Set([
+          ...activeData.excludedPeriods,
+          ...systemLockedIndices,
+        ]);
+        setExcludedIndices(mergedExclusions);
         setSnapshotName(activeData.name);
         setGeneralSettingsId(activeData.generalSettingsId);
         setSelectedSnapshotId(activeData.id);
@@ -59,6 +92,8 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
         const dateStr = now.toISOString().slice(0, 10);
         const timeStr = now.toTimeString().slice(0, 5);
         setSnapshotName(`Exclusion Snapshot ${dateStr} ${timeStr}`);
+        // Seed exclusions with system-locked indices for new snapshots
+        setExcludedIndices(new Set(systemLockedIndices));
       }
     } catch (error) {
       console.error("Failed to load period data", error);
@@ -77,6 +112,12 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
   };
 
   const handleToggle = (periodIndex: number) => {
+    if (!isAdmin) return;
+
+    // Prevent toggling if the period is system-locked
+    const p = mapping?.periods.find((item) => item.periodIndex === periodIndex);
+    if (p?.isSystemLocked) return;
+
     setExcludedIndices((prev) => {
       const next = new Set(prev);
       if (next.has(periodIndex)) {
@@ -89,6 +130,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
   };
 
   const handleSave = async () => {
+    if (!isAdmin) return;
     setSaving(true);
     try {
       await periodExclusionService.saveExclusions(
@@ -101,42 +143,80 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
       );
       if (onSave) onSave();
       loadHistory();
-      alert("Institutional snapshot archived successfully!");
+
+      // Sync the new exclusion ID to the global store
+      const activeData =
+        await periodExclusionService.getActiveExclusions(settingsId);
+      if (activeData) setExclusionId(activeData.id);
+
+      toast.success("Institutional snapshot archived successfully!");
     } catch (error) {
       console.error("Save failed", error);
-      alert("Failed to archive exclusions.");
+      toast.error("Failed to archive exclusions.");
     } finally {
       setSaving(false);
     }
   };
 
   const handleRestore = async (snapshot: PeriodExclusionDto) => {
-    if (window.confirm(`Restore configuration "${snapshot.name}"?`)) {
-      try {
-        await periodExclusionService.activateSnapshot(snapshot.id);
-        setExcludedIndices(new Set(snapshot.excludedPeriods));
-        setSnapshotName(snapshot.name);
-        setSelectedSnapshotId(snapshot.id);
-        setIsRegistryOpen(false); // Close modal on restore
-        alert("Version restored successfully.");
-      } catch (error) {
-        alert("Failed to restore version.");
-      }
-    }
+    if (!isAdmin) return;
+    setConfirmState({
+      isOpen: true,
+      title: "Restore Snapshot",
+      message: `Are you sure you want to restore the configuration "${snapshot.name}"? This will overwrite the current matrix buffer.`,
+      onConfirm: async () => {
+        try {
+          await periodExclusionService.activateSnapshot(snapshot.id);
+          setExcludedIndices(new Set(snapshot.excludedPeriods));
+          setSnapshotName(snapshot.name);
+          setSelectedSnapshotId(snapshot.id);
+          setExclusionId(snapshot.id); // Sync to global store
+          setIsRegistryOpen(false); // Close modal on restore
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          toast.success(
+            "Version restored successfully from institutional archives.",
+          );
+        } catch (error) {
+          toast.error("Failed to restore version.");
+        }
+      },
+    });
   };
 
   const handleClearAll = () => {
-    if (window.confirm("Purge all exclusions from current buffer?")) {
-      setExcludedIndices(new Set());
-    }
+    if (!isAdmin) return;
+    setConfirmState({
+      isOpen: true,
+      title: "Purge Matrix",
+      message:
+        "Are you sure you want to purge all manual exclusions from the current buffer? System-locked periods will remain excluded.",
+      onConfirm: () => {
+        // Keep only system-locked indices
+        const systemLockedIndices = mapping?.periods
+          .filter((p) => p.isSystemLocked)
+          .map((p) => p.periodIndex);
+        setExcludedIndices(new Set(systemLockedIndices || []));
+        setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        toast.info("Buffer purged (System locks preserved).");
+      },
+    });
   };
 
   const handleSelectAll = () => {
+    if (!isAdmin) return;
     if (!mapping) return;
-    if (window.confirm("Exclude all temporal slots in current cycle?")) {
-      const allIndices = mapping.periods.map((p) => p.periodIndex);
-      setExcludedIndices(new Set(allIndices));
-    }
+    setConfirmState({
+      isOpen: true,
+      title: "Exclude All Slots",
+      message:
+        "Are you sure you want to exclude ALL temporal slots in the current cycle? This will block all periods from scheduling.",
+      onConfirm: () => {
+        const allIndices = mapping.periods.map((p) => p.periodIndex);
+        setExcludedIndices(new Set(allIndices));
+        setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        toast.info("All slots excluded.");
+      },
+    });
   };
 
   // Group periods by week and then by day within week (Locked to 7-day Mon-Sun structure)
@@ -158,6 +238,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
       // Create a 7-day date map for the header (Monday to Sunday)
       // We look at the date objects to determine their weekday index
       const weekdayDateMap: (string | null)[] = [
+        null,
         null,
         null,
         null,
@@ -213,6 +294,29 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
     return dateObj.toLocaleDateString("en-GB", opts);
   };
 
+  if (!isAdmin) {
+    return (
+      <div className="p-12 bg-brick/5 rounded-institutional border-2 border-dashed border-brick/10 flex flex-col items-center justify-center text-center space-y-4 animate-fadeIn">
+        <div className="w-16 h-16 bg-brick/10 rounded-full flex items-center justify-center mb-2">
+          <FiDatabase className="text-brick text-2xl" />
+        </div>
+        <div>
+          <h3 className="text-brick font-black uppercase tracking-widest text-sm">
+            Temporal Matrix Locked
+          </h3>
+          <p className="text-[10px] text-institutional-muted font-bold max-w-xs mx-auto uppercase tracking-tighter">
+            View Timetable Coming Soon • Institutional Access Restricted
+          </p>
+        </div>
+        <div className="pt-4 border-t border-brick/5 w-full flex justify-center">
+          <span className="text-[8px] font-black bg-brick/10 text-brick px-3 py-1 rounded-full uppercase tracking-[0.2em] italic">
+            Awaiting Final Orchestration
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="main-exclusion-wrapper">
       <div className="calendar-grid-container">
@@ -246,12 +350,14 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                 onChange={(e) => setSnapshotName(e.target.value)}
                 className="snapshot-name-input !w-48 !py-1 !px-2 !text-xs"
                 placeholder="Label this snapshot..."
+                disabled={!isAdmin}
               />
             </div>
             <button
               onClick={() => setIsRegistryOpen(true)}
               className="history-button"
               title="Open Snapshot Registry"
+              disabled={!isAdmin && history.length === 0}
             >
               <FiRotateCcw size={20} />
             </button>
@@ -289,7 +395,9 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                           date={p.date}
                           periodOfDay={p.periodOfDay}
                           isExcluded={excludedIndices.has(p.periodIndex)}
+                          isSystemLocked={p.isSystemLocked}
                           onToggle={() => handleToggle(p.periodIndex)}
+                          disabled={!isAdmin}
                         />
                       ) : (
                         <div className="h-[38px] bg-brick/5 border border-dashed border-brick/10 rounded-sm opacity-10" />
@@ -320,20 +428,22 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
           <div className="flex gap-3">
             <button
               onClick={handleClearAll}
-              className="btn-secondary px-4 py-2 rounded font-bold text-xs uppercase border border-brick/10 hover:bg-brick/5"
+              disabled={!isAdmin}
+              className="btn-secondary px-4 py-2 rounded font-bold text-xs uppercase border border-brick/10 hover:bg-brick/5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Clear Buffer
             </button>
             <button
               onClick={handleSelectAll}
-              className="btn-secondary px-4 py-2 rounded font-bold text-xs uppercase border border-brick/10 hover:bg-brick/5"
+              disabled={!isAdmin}
+              className="btn-secondary px-4 py-2 rounded font-bold text-xs uppercase border border-brick/10 hover:bg-brick/5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Exclude All
             </button>
             <button
               onClick={handleSave}
-              disabled={saving}
-              className="brand-button-gold text-xs px-6 py-2"
+              disabled={saving || !isAdmin}
+              className="brand-button-gold text-xs px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Archiving..." : "Archive Snapshot"}
             </button>
@@ -419,6 +529,21 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modern Confirmation Sentinel */}
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
+        confirmText="Proceed"
+        isDangerous={
+          confirmState.title.includes("Purge") ||
+          confirmState.title.includes("Exclude")
+        }
+        icon="alert"
+      />
     </div>
   );
 };

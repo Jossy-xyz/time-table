@@ -9,6 +9,7 @@ interface PeriodButtonProps {
   isExcluded: boolean;
   onToggle: () => void;
   disabled?: boolean;
+  isSystemLocked?: boolean;
 }
 
 export const PeriodButton: React.FC<PeriodButtonProps> = ({
@@ -19,6 +20,7 @@ export const PeriodButton: React.FC<PeriodButtonProps> = ({
   isExcluded,
   onToggle,
   disabled = false,
+  isSystemLocked = false,
 }) => {
   const dateObj = typeof date === "string" ? new Date(date) : date;
 
@@ -36,21 +38,23 @@ export const PeriodButton: React.FC<PeriodButtonProps> = ({
     month: "long",
   });
 
-  const tooltip = `${dateStr} - Period ${periodOfDay} (Slot ${displayNumber})`;
-  const ariaLabel = `Period ${displayNumber}, ${fullDateStr}, ${
+  const tooltip = `${dateStr} - Period ${periodOfDay} (Slot ${displayNumber})${isSystemLocked ? " [SYSTEM LOCKED]" : ""}`;
+  const ariaLabel = `${isSystemLocked ? "LOCKED: " : ""}Period ${displayNumber}, ${fullDateStr}, ${
     isExcluded ? "Excluded" : "Available"
   }`;
 
   return (
     <button
       type="button"
-      className={`period-button ${isExcluded ? "excluded" : "available"}`}
+      className={`period-button ${
+        isSystemLocked ? "system-locked" : isExcluded ? "excluded" : "available"
+      }`}
       onClick={onToggle}
-      disabled={disabled}
+      disabled={disabled || isSystemLocked}
       title={tooltip}
       aria-label={ariaLabel}
     >
-      {label}
+      {isSystemLocked ? "" : label}
     </button>
   );
 };

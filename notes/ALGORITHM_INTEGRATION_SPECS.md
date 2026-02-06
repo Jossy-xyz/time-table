@@ -107,3 +107,54 @@ The Bells University generation logic is designed for **Edge Execution**. This m
 
 **Status:** Implementation Ready  
 **Architecture:** Distributed Zero-Trust Mapping v4.1 (External Compatible)
+
+---
+
+## 📅 7. Temporal Matrix & Exclusion Masking (Conceptual Model)
+
+To ensure the UI aligns perfectly with the User's mental model while maintaining database efficiency, the following architectural decisions have been made:
+
+### A. The "Exclusion Mask" Strategy
+
+- **Observation**: Admins often exclude dates (e.g., Ash Wednesday) in the Exclusion Tab.
+- **Architectural Logic**:
+  - The `PeriodSlotSelector` in the Constraints Section will fetch the **Active Exclusion Snapshot**.
+  - Slots that are marked as "Excluded" will be visually masked (greyed out/disabled) in the Constraint Selector.
+  - **Outcome**: Prevents the user from requesting a constraint (e.g., "Schedule CHM101 on Slot 4") when Slot 4 has already been mathematically blocked by an Exclusion.
+
+### B. Mental Mapping vs. Database Storage
+
+- **The DB Storage**: Continues to store **Raw Indices** (0, 1, 2...). This is the "Mental Anchor" for the solver.
+- **The UI Mapping**: Resolves raw indices into human-readable labels: `[Day] [Date] | [PX]` (e.g., `Tue 24th | P2`).
+- **Clock Times**: Are **omitted** from the mapping UI to maintain a clean "Academic Slot" focus (P1, P2 are sufficient).
+- **No DB Transformation Required**: No changes to the schema are needed; the `PeriodCalculationService` remains the single source of truth for resolving indices into these labels.
+
+---
+
+## 🏗️ 8. Sector-Based Constraint Mapping (UI Logic)
+
+To ensure the generator receives a valid "Constraint Matrix," the UI must enforce the institutional sector hierarchy during data entry.
+
+### A. The Primary/Secondary Relationship
+
+| Constraint Type         | Primary Identifier (Search) | Secondary Dependency (Selector) | Conceptual Flow       |
+| :---------------------- | :-------------------------- | :------------------------------ | :-------------------- |
+| **Exam Slots (Period)** | **Course** (e.g., CHM102)   | **Calendar Grid** (Slots)       | "When is this done?"  |
+| **Venue Assignments**   | **Venue** (e.g., Rm1)       | **Course List** (Search + Tick) | "Who uses this room?" |
+| **Academic Sequences**  | **Course** (e.g., CHM102)   | **Course List** (Search + Tick) | "What follows what?"  |
+| **Staff Availability**  | **Staff** (e.g., BUT/023)   | **Immediate / Grid**            | "Who is unavailable?" |
+
+### B. Selection Persistence (The Backend Key)
+
+When saving to the `constraint_table`, the primary identifier becomes the **Key** in the `ID(DEPS)` format:
+
+- **Correct**: `Rm1(PHY102,CSC202)` (Venue as Key for Venue Tabs)
+- **Correct**: `CHM102(0,1,2)` (Course as Key for Period Tabs)
+- **Correct**: `CHM101(PHY102)` (Course as Key for Sequence/Coincident Tabs)
+
+### C. Registry Syncing (Staff Population)
+
+The **Invigilator** tab must explicitly fetch the Staff Registry (`/staff/get`) to populate the filter-search selector. The `staffAbsId` is used as the primary serial identifier for these constraints.
+
+**Status:** Implementation Synchronized  
+**Architecture:** Institutional Sector Mapping v1.0

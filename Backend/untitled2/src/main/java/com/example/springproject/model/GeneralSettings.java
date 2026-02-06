@@ -11,6 +11,9 @@ public class GeneralSettings {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "description")
+    private String description;
+
     @Column(name = "days_per_week", nullable = false)
     private Integer daysPerWeek = 5;
 
@@ -46,6 +49,9 @@ public class GeneralSettings {
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
     public Integer getDaysPerWeek() { return daysPerWeek; }
     public void setDaysPerWeek(Integer daysPerWeek) { this.daysPerWeek = daysPerWeek; }

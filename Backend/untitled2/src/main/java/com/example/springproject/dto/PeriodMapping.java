@@ -1,5 +1,6 @@
 package com.example.springproject.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 
 public class PeriodMapping {
@@ -9,6 +10,9 @@ public class PeriodMapping {
     private String dayOfWeek;
     private Integer weekNumber;
     private Integer periodOfDay;
+    
+    @JsonProperty("isSystemLocked")
+    private Boolean isSystemLocked;
     
     // Constructors
     public PeriodMapping() {}
@@ -31,4 +35,7 @@ public class PeriodMapping {
     
     public Integer getPeriodOfDay() { return periodOfDay; }
     public void setPeriodOfDay(Integer periodOfDay) { this.periodOfDay = periodOfDay; }
+
+    public Boolean getIsSystemLocked() { return isSystemLocked; }
+    public void setIsSystemLocked(Boolean isSystemLocked) { this.isSystemLocked = isSystemLocked; }
 }

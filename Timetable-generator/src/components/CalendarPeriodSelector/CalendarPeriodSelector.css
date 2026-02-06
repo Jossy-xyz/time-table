@@ -164,6 +164,20 @@
   box-shadow: 0 4px 12px rgba(166, 118, 96, 0.3);
 }
 
+/* System Locked State - Muted/Disabled appearance */
+.period-button.system-locked {
+  background: rgba(166, 118, 96, 0.05);
+  border: 1.5px dashed rgba(166, 118, 96, 0.15);
+  color: rgba(166, 118, 96, 0.4);
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
+/* .period-button.system-locked::before {
+  content: "";
+} */
+
 /* Summary Bar Elite */
 .selection-summary {
   display: flex;

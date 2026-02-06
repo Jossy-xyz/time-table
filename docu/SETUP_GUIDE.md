@@ -105,3 +105,4 @@ If Gradle is too large to download:
 
 - **Gradle Download Failure**: Increase timeouts in `gradle/wrapper/gradle-wrapper.properties` to `600000` (10 minutes).
 - **CORS Errors**: The backend is configured to allow `http://localhost:3000`. If you use a different port, update `@CrossOrigin` in your Java Controllers.
+- **TypeScript Version Mismatch**: If you see a "WARNING: You are currently running a version of TypeScript which is not officially supported" error during `npm start`, add `WARN_ON_UNSUPPORTED_TYPESCRIPT_VERSION=true` to your `Timetable-generator/.env` file to bypass the preflight check.

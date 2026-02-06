@@ -18,4 +18,6 @@ public class ConstraintDto {
     private String examWCoinE;
     private String examExcE;
     private String frontLE;
+    private String staffOmit;
+    private String staffPeriodExcl;
 }

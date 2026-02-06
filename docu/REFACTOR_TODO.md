@@ -100,26 +100,11 @@ This document tracks the progress of the structural refactor (DB + Backend Align
 - [ ] **BE-07**: **Repository Caching**: Integrate JPA second-level cache or manual caching for high-read reference data.
 - [ ] **FE-14**: **Tooltip System**: Implement comprehensive tooltips/help system for user guidance
   - [ ] **FE-14A**: Create reusable `Tooltip` component with hover/click triggers
-  - [ ] **FE-14B**: Add tooltips to Institutional Constraints section:
-    - Explain each constraint type (Period Inc/Exc, Venue Inc/Exc, etc.)
-    - Guide on proper constraint format and syntax
-    - Show examples for each constraint category
-  - [ ] **FE-14C**: Add tooltips to Period Exclusion Calendar:
-    - Explain how to select/deselect periods
-    - Show period index mapping
-    - Display total excluded vs available slots
-  - [ ] **FE-14D**: Add tooltips to General Settings:
-    - Explain session/semester configuration
-    - Guide on exam duration calculation
-    - Campus type and examination category options
-  - [ ] **FE-14E**: Add tooltips to Pre-Flight Checklist:
-    - Explain each validation check
-    - Guide on resolving failed checks
-    - Show capacity calculation details
-  - [ ] **FE-14F**: Add tooltips to Algorithm Trigger:
-    - Explain generation process
-    - Show expected duration and progress tracking
-    - Display slot allocation strategy
+  - [ ] **FE-14B**: Add tooltips to Institutional Constraints section
+  - [ ] **FE-14C**: Add tooltips to Period Exclusion Calendar
+  - [ ] **FE-14D**: Add tooltips to General Settings
+  - [ ] **FE-14E**: Add tooltips to Pre-Flight Checklist
+  - [ ] **FE-14F**: Add tooltips to Algorithm Trigger
 - [ ] **FE-15**: **UX Polish**: Add loading states, success animations, and error recovery flows
 
 ## 🏁 PHASE 9: ALGORITHM FINALIZATION & SLOT SYNC
@@ -129,20 +114,125 @@ This document tracks the progress of the structural refactor (DB + Backend Align
 - [x] **ALG-06**: Implement **Capacity Pre-flight Check**: `Total Slots >= Total Courses to Schedule`. (Done)
 - [x] **ALG-07**: **Generation View Sync**: Display "Active Exclusion Count" in the finalized Generation dashboard. (Implied complete via Dashboard refactor)
 
-## 🌐 PHASE 10: DISTRIBUTED GENERATION & EDGE ORCHESTRATION
+## 🌐 PHASE 10: DISTRIBUTED GENERATION & EDGE ORCHESTRATION (PREP)
 
-- [ ] **DIST-01**: **External Endpoint Configuration**: Decouple generation API from local Spring context (preparing for external AI/Solver nodes).
-- [ ] **DIST-02**: **Environment variable Injection**: Implement `ALGORITHM_NODE_URL` in `application.properties` to allow switching between local and remote machines.
-- [ ] **DIST-03**: **Webhook / Callback Logic**: Implement a "Completion Callback" endpoint (`/api/algorithm/callback`) for the external node to notify the main server upon success.
-- [ ] **DIST-04**: **Status Polling Refactor**: Update `optimization_settings` polling to handle high-latency external connections gracefully.
-- [ ] **DIST-05**: **CORS & Security**: Update Backend Security config to allow incoming traffic/callbacks from the specific External Engine IP.
+- [ ] **DIST-01**: **External Endpoint Configuration**: Decouple generation API from local Spring context.
+- [ ] **DIST-02**: **Environment variable Injection**: Implement `ALGORITHM_NODE_URL` in `application.properties`.
+- [ ] **DIST-03**: **Webhook / Callback Logic**: Implement a "Completion Callback" endpoint (`/api/algorithm/callback`).
+- [ ] **DIST-04**: **Status Polling Refactor**: Update `optimization_settings` polling for external orchestration.
+- [ ] **DIST-05**: **CORS & Security**: Update Backend Security config for External Engine IP.
+
+## 🛡️ PHASE 11: INVIGILATOR CONSTRAINTS (NEW)
+
+- [x] **INV-01**: **Backend Schema Update**: Add `staff_omit` and `staff_period_excl` columns to `constraint_table`. (Done)
+- [x] **INV-02**: **Entity & DTO Refactor**: Update `Constrainttable.java` and `ConstraintDto.java`. (Done)
+- [x] **INV-03**: **Frontend Type Alignment**: Update `institutional.ts` to include invigilator constraint fields. (Done)
+- [x] **INV-04**: **Constraint UI: Staff Omission**: Implement UI for selecting staff who are unavailable for the entire session. (Done)
+- [x] **INV-05**: **Constraint UI: Period-Specific Exclusions**: Implement UI for selecting staff unavailability for specific slots. (Done)
+- [x] **INV-06**: **UX Polish: Mini-Temporal Matrix**: Refactor `PeriodSlotSelector` into a compact, date-picker-like version of the `CalendarGrid` (Mental Model Sync). (Done)
+- [x] **INV-07**: **Grid Pagination**: Implement pagination/week-selection for the constraint period grid to handle multi-week schedules. (Done)
+- [x] **INV-08**: **Conceptual Mapping**: Ensure UI maps raw integers to "Day/Period" labels to aid non-experts. (Done)
+- [x] **INV-09**: **Algorithm Integration**: Update the generation payload to include invigilator constraints for the solver engine. (Done)
+- [x] **INV-10**: **Architectural Milestone**: Documentation of "Exclusion Mask" and "Day/Date Mapping" completed in `ALGORITHM_INTEGRATION_SPECS.md`. (Done)
 
 ---
 
-_Status: 100% Complete (Phases 1-7 & 9 Finalized)_
+## 📈 PHASE 12: EXCLUSION MASKING & PRE-FLIGHT DIAGNOSTICS
+
+- [x] **DIAG-01**: **Exclusion Masking**: Update `PeriodSlotSelector` to fetch and visually disable periods already marked as "Excluded" in the active snapshot. (Done)
+- [x] **DIAG-02**: **Capacity Reporting**: Implement a real-time count of "Net Available Slots" (Total - Excluded) in the generation UI. (Done)
+- [x] **DIAG-03**: **Constraint Conflict Detection**: Basic validation to alert user if a hard constraint (e.g., Period Inclusion) targets an Excluded Slot. (Done)
+- [x] **DIAG-04**: **UI Polish**: Update `PeriodSlotSelector` labels to use the standardized `Tue 24th | P1` format. (Done)
+
+---
+
+## 🏗️ PHASE 13: CORE INSTITUTIONAL PARAMETERS
+
+- [x] **CORE-01**: **Missing Fields**: Added `Exam Category`, `Campus Type`, and `Exam Level` to the General Orchestration form. (Done)
+- [x] **CORE-02**: **Automatic Duration**: Implemented automated "Week Calculation" (Floor-Up) based on start/end dates. (Done)
+- [x] **CORE-03**: **Mental Alignment**: Synchronized default values (Regular, Single Campus, Level: All) with user requirements. (Done)
+
+---
+
+---
+
+## 📦 PHASE 14: INSTITUTIONAL CONTEXT PERSISTENCE & UNIVERSAL SYNC
+
+- [ ] **SYNC-01**: **Global Context Store**: Implement a Zustand store to manage the "Active Triad" (`activeGS`, `activeConstraint`, `activeExclusion`).
+- [ ] **SYNC-02**: **Reactive Grid Topology**: Ensure the Constraint Builder and Temporal Matrix modules reacti
+      vely update their grid geometry when General Settings are modified.
+- [ ] **SYNC-03**: **Auto-Promotion Logic**: Automatically update the Selection Store with the newly created ID after any successful Database Save/Snapshot action.
+- [ ] **SYNC-04**: **Cross-Page Persistence**: Sync the selection store with `localStorage` and URL parameters to maintain configuration context during navigation.
+- [ ] **SYNC-05**: **Topology Integrity Guard**: Implement a validator that flags "Orphaned Snapshots"—constraints or exclusions built for a grid size that no longer matches the active General Settings.
+
+---
+
+## 🧠 PHASE 15: INSTITUTIONAL LOGIC & MENTAL MODEL ALIGNMENT
+
+- [ ] **MODEL-01**: **Sequential Selection Flow**: Implement the Two-Step logic for composite constraints:
+  - **Type A (Entity + Grid)**:
+    - _Period Inclusive Exams_: Search **Course** -> Open **Calendar Grid**.
+    - _Period Inclusive Venues_: Search **Venue** -> Open **Calendar Grid**.
+    - _Invigilator Exclusions_: Search **Staff** -> Open **Calendar Grid**.
+  - **Type B (Entity + Entity)**:
+    - _Venue Exclusive Exams_: Search **Venue** -> Open **Course Picker**.
+    - _Venue Inclusive Exams_: Search **Venue** -> Open **Course Picker**.
+    - _Academic Sequence (After/Exclusive/Coinciding)_: Search **Course** -> Open **Course Picker**.
+  - **Type C (Immediate / Single-Step)**:
+    - _Front Loaded Exams_: Search **Course** -> Add.
+    - _Staff Omission_: Search **Staff** -> Add.
+- [ ] **MODEL-02**: **Selector Inversion**: Refactor `VenueSlotSelector` to intelligently swap between "Registry Mode" (Venues) and "Course Mode" (Courses) based on the Sector Key.
+- [ ] **MODEL-03**: **String Builder Alignment**: Ensure `getConstraintsForDB` generates keys based on the search subject (Venue vs Course).
+- [ ] **MODEL-04**: **Edit Pattern Mapping**: Ensure clicking an existing chip re-opens the specific secondary selector (Grid vs Picker) required for that category.
+
+---
+
+## 🕒 PHASE 16: MONDAY-ANCHORED TEMPORAL MATRIX (NEW)
+
+- [x] **TIME-01**: **Backend: Monday Anchor Implementation**:
+  - [x] Update `PeriodMapping` DTO to include `isSystemLocked` boolean.
+  - [x] Refactor `PeriodCalculationService.java` to find the preceding Monday of `startDate` and use it as the 0-index anchor.
+  - [x] Implement logic to mark slots as `isSystemLocked` if `date < startDate` or `date > endDate`.
+- [x] **TIME-02**: **Frontend: Stable Indexing Migration**:
+  - [x] Update `CalendarGrid.tsx` and `PeriodSlotSelector.tsx` to handle the `isSystemLocked` property.
+  - [x] Visually disable and auto-exclude locked periods in the UI.
+  - [x] Ensure the global incrementing identifiers (1, 2, 3...) remain stable (Slot 0 is always Monday Morning).
+- [x] **TIME-03**: **Cross-Module Validation**:
+  - [x] Verify that all constraints (Period Inclusive, etc.) correctly map to the new anchored indices.
+  - [x] Update generation payload to include system-locked indices by default in the `excludedPeriods` array.
+
+---
+
+_Status: 90% Functional Alignment (Temporal refinement in progress)_
+
+## 🕒 TEMPORAL SCENARIOS (Monday Anchor)
+
+### Scenario A: Wednesday Start
+
+- **Dates**: Start Wed (June 4), End Tue (June 17).
+- **Anchor**: Mon (June 2).
+- **Indices 0-14 (Mon-Tue)**: marked `isSystemLocked=true`.
+- **Slot 15**: Wednesday Morning (P1).
+- **Result**: Even if the session opens Wednesday, the first two days of indices are "reserved" to prevent ID shifting.
+
+### Scenario B: Universal Communication
+
+- Coordinator says: "Exclude **Slot 0**".
+- In **ALL** sessions (Regular, TopUp, Part-time), Slot 0 refers to **Monday Morning, Week 1**, regardless of whether their specific exam starts Monday or Friday.
+
+### Scenario C: Weekend Buffer
+
+- Indices for Saturday/Sunday are generated if `daysPerWeek=5`.
+- They are marked `isSystemLocked=true`.
+- This ensures Monday of Week 2 always follows a predictable mathematical skip from Friday of Week 1.
+
+---
 
 ## 📝 NOTES & CLARIFICATIONS
 
+- **Invigilator Constraints**:
+  - (i) **Staff to omit** (by ID, e.g. BUT/0235): Staff who will not be available throughout the examination period.
+  - (ii) **Periods exclusive to invigilators** (e.g. BUT/0235 (4,9,10,11)): Staff with assignments or permissions to be away on certain days or periods.
 - **Access Control**:
   - [x] **Venues Tab**: Accessible by **College Rep (CR)** and **Admin (AD)** only. (Restricted for DR/ST)
   - [x] **Operations Hub / Timetable Generation**: Strictly **Admin (AD)** only.

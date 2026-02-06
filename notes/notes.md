@@ -30,36 +30,49 @@ Now the users table for accecs just needs to be tied to a staff id thats all, an
 
 University Admin has superoir acess and universal scope
 
-Utitlies:
-A manual student registration (i.e create right in respect to registration) **other reps**, update only right
-
 how do we propose handling control
 
-Considerations: will need to expand the
+**Considerations:** will need to expand the;
 
 - Examination Category, e.g., Regular, TopUp, Part-Time, Online. (default = Regular)
 - Campus Type (Single or Multi) default = single
 - Examination Level to Schedule: All or selected Levels (default = All)
 - No of Weeks for Exam Duration (e.g., 1, 3). (default = 2) calculated from the start-end date and floored up (eg, 23days equals 4 weeks: 3wks and 2days)
+- The venues tab or access is for college rep upwards access also timetable genertion can only be done by the AD so it means the Operations Hub doesnt show in the rest levels
 
-` ## The venues tab or access is for college rep upwards access also timetable genertion can only be done by the AD so it means the Operations Hub doesnt show in the rest levels
+# **Timetable grid period selctor (i.e Calendar Projection Surface)**
 
-` ## timetable grid period selctor (i.e Calendar Projection Surface)
 - Show the full week durations/period mapping (period is saved from 0 on the backend, can show 1 in the front up until the end week)
-- NOte we storing the execlusive period so thats what we ticking/selcting  as no period slots
+- NOte we storing the execlusive period so thats what we ticking/selcting as no period slots
 - Trying to make the ui, have like a mental/conceptual model mapaping so instead of plain mon,tues , shows the date (etc wed 24th while having the number of slot etc), the timetable slot should adjust with the number of days of the week as well (starting with monday)
-Ps: its the same idea but just shows the full view list of all the period slot of the exams days/weeks
-- then we brainstorm on how to perisist it to the db 
+- Ps: its the same idea but just shows the full view list of all the period slot of the exams days/weeks
+- then we brainstorm on how to perisist it to the db
+
+- # the constarints period seclector should be like the exclusion period selector as well but a smaller version (date picker look or ux ) and how do you handle grid with large weeks display (pagination like the date picker) BRAINSTORM DON'T TAKE MY BIAS, also fully understanding the conceptual and menta logic (cause for a venue inclusive exam shouldnt show period selector like that etc) also maps the mental and conceptual logic
+
+so for example trying to set a course to fall in a period (i.e Exams that must be scheduled in specific time periods) the db hold the raw period integer but on the ui, period selctor the same menatl model (Temporal Matrix but can be in a date picker size i.e tuesday period 2 instead of raw integer periodsand aids for non technical or non domain experts)
+
+# the period selctor and period reated pull, is picking from the latest in the db, not the curent active selction from the user and name or default description name if missing  
+the related list for the System Readiness Checklist shouldnt auto fill form the history 
 
 
 ## i. getting mental, conceptual and business model rigt to get corr bw;
+
 1. examtab
 2. general_settings
 3. optimization_settings
 4. output_tab
 
-## ii. working on the crud interface, corr with db & mental mapping 
+## Utitlies:
+
+A manual student registration (i.e create right in respect to registration) **other reps**, update only right
+
+## ii. working on the crud interface, corr with db & mental mapping
 
 ## Consider:
+
 - The dashboard should be able to show the actual user name from the staff table
 - maually upload registration course, or student and courses
+
+Priod selctor ensure the mesntal works, Exams After Exams no need for period etxc
+

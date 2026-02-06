@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useCallback, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
   FiUsers,
@@ -25,8 +25,21 @@ import {
  */
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [session] = useState("2024/2025");
   const [semester] = useState("Alpha");
+
+  // Authentication guard
+  useEffect(() => {
+    // Check if we have a user object at all
+    if (!user) {
+      const storedUsername = localStorage.getItem("username");
+      if (!storedUsername) {
+        console.warn("[DASHBOARD] No authenticated user, redirecting to login");
+        navigate("/login");
+      }
+    }
+  }, [user, navigate]);
 
   // Live Stats State
   const [counts, setCounts] = useState({
@@ -38,7 +51,18 @@ const DashboardPage: React.FC = () => {
   });
 
   const fetchDashboardData = useCallback(async () => {
-    const username = user?.username || "admin";
+    const username = user?.username || localStorage.getItem("username");
+
+    // Guard against null, undefined, or string "undefined"
+    if (!username || username === "undefined") {
+      setCounts((prev) => ({
+        ...prev,
+        status: "Not Authenticated",
+        statusOk: false,
+      }));
+      return;
+    }
+
     const endpoints = [
       {
         id: "student",
@@ -58,7 +82,13 @@ const DashboardPage: React.FC = () => {
           const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout for aviation-grade responsiveness
 
           try {
-            const res = await fetch(ep.url, { signal: controller.signal });
+            const headers: Record<string, string> = {
+              "X-Actor-Username": username,
+            };
+            const res = await fetch(ep.url, {
+              signal: controller.signal,
+              headers,
+            });
             clearTimeout(timeoutId);
 
             if (!res.ok) return { id: ep.id, count: 0, ok: false };
@@ -93,6 +123,10 @@ const DashboardPage: React.FC = () => {
       setCounts((prev) => ({ ...prev, status: "Offline", statusOk: false }));
     }
   }, [user?.username]);
+
+  React.useEffect(() => {
+    // User state monitoring
+  }, [user]);
 
   React.useEffect(() => {
     fetchDashboardData();
@@ -182,7 +216,9 @@ const DashboardPage: React.FC = () => {
           <h1 className="text-3xl font-black text-institutional-primary tracking-tight">
             Greetings,{" "}
             <span className="text-brick">
-              {user?.username || "Authorized Admin"}
+              {user?.username ||
+                localStorage.getItem("username") ||
+                "Authorized Admin"}
             </span>
           </h1>
           <p className="text-[11px] text-institutional-secondary font-medium tracking-tight opacity-70">

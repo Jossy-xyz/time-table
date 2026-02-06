@@ -60,11 +60,13 @@ public class Usercontroller {
                 LoginResponse response = new LoginResponse(
                     user.getId(),
                     user.getUsername(),
+                    user.getEmail(),
                     user.getRole() != null ? user.getRole().getId() : null,
                     user.getRole() != null ? user.getRole().getCode() : null,
                     user.getCollege() != null ? user.getCollege().getId() : null,
                     user.getDepartment() != null ? user.getDepartment().getId() : null
                 );
+                System.out.println("Login successful for user: " + user.getUsername() + " (ID: " + user.getId() + ")");
                 return ResponseEntity.ok(response);
             }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");

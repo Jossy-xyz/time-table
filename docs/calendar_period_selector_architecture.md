@@ -19,9 +19,10 @@ The Calendar Period Selector (Calendar Projection Surface) is a visual interface
 │  │  Mon 20th   Tue 21st   Wed 22nd   Thu 23rd   Fri 24th               │ │
 │  │  ─────────  ─────────  ─────────  ─────────  ─────────               │ │
 │  │  Week 1                                                               │ │
-│  │    ○1         ○4         ○7        ○10        ○13                    │ │
-│  │    ○2         ○5         ○8        ○11        ○14                    │ │
-│  │    ○3         ○6         ○9        ○12        ○15                    │ │
+│  │    [L]1       [L]4       ○7        ○10        ○13                    │ │
+│  │    [L]2       [L]5       ○8        ○11        ○14                    │ │
+│  │    [L]3       [L]6       ○9        ○12        ○15                    │ │
+│  │    (Locked)   (Locked)   (Exam Start)                                 │ │
 │  │                                                                       │ │
 │  │  Mon 27th   Tue 28th   Wed 29th   Thu 30th   Fri 31st               │ │
 │  │  Week 2                                                               │ │
@@ -57,10 +58,18 @@ The Calendar Period Selector (Calendar Projection Surface) is a visual interface
 
 **Configuration:**
 
-- Exam Duration: Jan 20 - Feb 3 (2 weeks)
+- Exam Duration: Wed Jan 22 - Feb 3
+- Anchor Date: Mon Jan 20 (Automatically identified)
 - Days per week: 5 (Mon-Fri)
 - Periods per day: 3
-- Total slots: 10 days × 3 periods = 30 slots (indexed 0-29)
+
+**System Behavior (Auto-Locking):**
+
+1. **Monday 20th & Tuesday 21st:** These occur before the `start_date`.
+2. **Indices affected:** 0, 1, 2 (Monday) and 3, 4, 5 (Tuesday).
+3. **Internal State:** These 6 slots are marked `isSystemLocked: true`.
+4. **UI Visuals:** Slots 1 through 6 are greyed out with a lock icon.
+5. **Payload:** These indices are automatically included in any save/generation request as forbidden slots.
 
 **User Action:**
 User clicks on "Wed 22nd - Period 2" (the circle labeled "8")
@@ -68,7 +77,8 @@ User clicks on "Wed 22nd - Period 2" (the circle labeled "8")
 **Backend Calculation:**
 
 ```
-Day offset from start: Wed 22nd - Mon 20th = 2 days
+Anchor: Mon 20th
+Day offset: Wed 22nd - Mon 20th = 2 days
 Period within day: 2 (second period)
 Global index (0-based): 2 days × 3 periods/day + (2-1) = 7
 Display number (1-based): 8
@@ -105,14 +115,23 @@ const totalWeeks = Math.ceil(totalDays / days_per_week);
 // Calculate total period slots
 const totalPeriods = totalDays * periods_per_day;
 
+// Calculate anchor date (Preceding Monday)
+function getAnchorDate(startDate: Date): Date {
+  const date = new Date(startDate);
+  const day = date.getDay(); // 0 (Sun) to 6 (Sat)
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust to get Monday
+  return new Date(date.setDate(diff));
+}
+
 // Generate period-to-date mapping
 interface PeriodMapping {
-  periodIndex: number; // 0-based backend index
+  periodIndex: number; // 0-based backend index (starts from Anchor Date)
   displayIndex: number; // 1-based frontend display
   date: Date; // Actual calendar date
   dayOfWeek: string; // "Mon", "Tue", etc.
   weekNumber: number; // 1, 2, 3, etc.
   periodOfDay: number; // 1, 2, 3 (within that day)
+  isSystemLocked: boolean; // True if date < startDate OR date > endDate
 }
 ```
 
@@ -156,22 +175,22 @@ CalendarPeriodSelector/
 function calculatePeriodIndex(
   date: Date,
   periodOfDay: number,
-  startDate: Date,
+  anchorDate: Date,
   periodsPerDay: number,
 ): number {
-  const dayOffset = daysBetween(startDate, date);
+  const dayOffset = daysBetween(anchorDate, date);
   return dayOffset * periodsPerDay + (periodOfDay - 1); // -1 for 0-based
 }
 
 // Convert global index to date + period
 function indexToPeriod(
   index: number,
-  startDate: Date,
+  anchorDate: Date,
   periodsPerDay: number,
 ): PeriodMapping {
   const dayOffset = Math.floor(index / periodsPerDay);
-  const periodOfDay = (index % periodsPerDay) + 1; // +1 for 1-based display
-  const date = addDays(startDate, dayOffset);
+  const periodOfDay = (index % periodsPerDay) + 1;
+  const date = addDays(anchorDate, dayOffset);
 
   return {
     periodIndex: index,
@@ -180,6 +199,7 @@ function indexToPeriod(
     dayOfWeek: getDayName(date),
     weekNumber: Math.floor(dayOffset / 7) + 1,
     periodOfDay,
+    isSystemLocked: date < startDate || date > endDate,
   };
 }
 ```

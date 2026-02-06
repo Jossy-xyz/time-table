@@ -17,8 +17,9 @@ export const apiClient = {
     headers.set("Content-Type", "application/json");
 
     // Inject Actor Username for DIV Scoping
-    if (user?.username) {
-      headers.set("X-Actor-Username", user.username);
+    const actorUsername = user?.username || localStorage.getItem("username");
+    if (actorUsername) {
+      headers.set("X-Actor-Username", actorUsername);
     }
 
     const config: RequestInit = {
@@ -30,6 +31,10 @@ export const apiClient = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(
+        `[API ERROR] ${options.method || "GET"} ${endpoint} -> ${response.status}:`,
+        errorData,
+      );
       throw new Error(errorData.message || `API Error: ${response.status}`);
     }
 

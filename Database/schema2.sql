@@ -205,6 +205,7 @@ CREATE TABLE registration (
 -- General Settings (Institutional Framework)
 CREATE TABLE general_settings (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  description TEXT DEFAULT NULL,
   days_per_week INT NOT NULL DEFAULT 5,
   periods_per_day INT NOT NULL DEFAULT 3,
   semester VARCHAR(50) DEFAULT NULL,
@@ -223,7 +224,6 @@ CREATE TABLE period_exclusion_snapshots (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   general_settings_id BIGINT NOT NULL,
   name VARCHAR(255) NOT NULL DEFAULT 'Untitled Snapshot',
-  description TEXT DEFAULT NULL,
   excluded_periods VARCHAR(500) NOT NULL DEFAULT '',
   is_active BOOLEAN NOT NULL DEFAULT FALSE,
   created_by VARCHAR(100) NOT NULL DEFAULT 'system',
@@ -255,7 +255,9 @@ CREATE TABLE constraint_table (
     exam_w_aft_e  VARCHAR(500) DEFAULT NULL,
     exam_w_coin_e VARCHAR(500) DEFAULT NULL,
     exam_exc_e    VARCHAR(500) DEFAULT NULL,
-    front_l_e     VARCHAR(500) DEFAULT NULL
+    front_l_e     VARCHAR(500) DEFAULT NULL,
+    staff_omit    TEXT DEFAULT NULL,
+    staff_period_excl TEXT DEFAULT NULL
 ) ENGINE=InnoDB;
 
 -- Optimization Settings

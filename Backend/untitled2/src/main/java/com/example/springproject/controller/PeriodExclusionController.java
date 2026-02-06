@@ -94,10 +94,26 @@ public class PeriodExclusionController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
         
+        // ENFORCEMENT: Automatically include system-locked periods (e.g. pre-start dates)
+        PeriodMappingResponse mapping = periodCalculationService.calculatePeriodMapping(settings);
+        List<Integer> systemLockedIndices = mapping.getPeriods().stream()
+                .filter(p -> Boolean.TRUE.equals(p.getIsSystemLocked()))
+                .map(com.example.springproject.dto.PeriodMapping::getPeriodIndex)
+                .collect(Collectors.toList());
+
+        // Merge User selections with System Locks (Set handles duplicates)
+        java.util.Set<Integer> mergedExclusions = new java.util.HashSet<>();
+        if (request.getExcludedPeriods() != null) {
+            mergedExclusions.addAll(request.getExcludedPeriods());
+        }
+        mergedExclusions.addAll(systemLockedIndices);
+
+        mergedExclusions.addAll(systemLockedIndices);
+
         PeriodExclusionSnapshot snapshot = new PeriodExclusionSnapshot();
-        snapshot.setGeneralSettings(settings);
+        snapshot.setGeneralSettings(settings); // Line 111
         snapshot.setName(request.getName());
-        snapshot.setExcludedPeriodsList(request.getExcludedPeriods());
+        snapshot.setExcludedPeriodsList(new java.util.ArrayList<>(mergedExclusions));
         snapshot.setIsActive(request.getSetAsActive() != null ? request.getSetAsActive() : false);
         snapshot.setCreatedBy(username);
         

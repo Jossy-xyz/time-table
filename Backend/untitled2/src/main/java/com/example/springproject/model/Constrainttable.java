@@ -13,6 +13,9 @@ public class Constrainttable {
     @Column(name = "name", length = 255)
     private String name = "Untitled Snapshot";
 
+    @Column(name = "description")
+    private String description;
+
     @Column(name = "record_date", updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date recordDate;
@@ -47,6 +50,12 @@ public class Constrainttable {
     @Column(name = "front_l_e")
     private String frontLE;
 
+    @Column(name = "staff_omit")
+    private String staffOmit;
+
+    @Column(name = "staff_period_excl")
+    private String staffPeriodExcl;
+
     @PrePersist
     protected void onCreate() {
         if (recordDate == null) recordDate = new Date();
@@ -66,6 +75,14 @@ public class Constrainttable {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public Date getRecordDate() {
@@ -154,5 +171,21 @@ public class Constrainttable {
 
     public void setFrontLE(String frontLE) {
         this.frontLE = frontLE;
+    }
+
+    public String getStaffOmit() {
+        return staffOmit;
+    }
+
+    public void setStaffOmit(String staffOmit) {
+        this.staffOmit = staffOmit;
+    }
+
+    public String getStaffPeriodExcl() {
+        return staffPeriodExcl;
+    }
+
+    public void setStaffPeriodExcl(String staffPeriodExcl) {
+        this.staffPeriodExcl = staffPeriodExcl;
     }
 }
