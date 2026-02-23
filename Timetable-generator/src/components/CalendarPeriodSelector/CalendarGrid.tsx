@@ -219,6 +219,22 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
     });
   };
 
+  // Helper to parse "YYYY-MM-DD" as local date to prevent timezone shifts
+  const parseLocalDate = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    // Handle YYYY-MM-DD string
+    if (typeof dateStr === "string" && dateStr.includes("-")) {
+      const parts = dateStr.split("T")[0].split("-");
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+      }
+    }
+    return new Date(dateStr);
+  };
+
   // Group periods by week and then by day within week (Locked to 7-day Mon-Sun structure)
   const groupedData = useMemo(() => {
     if (!mapping || !mapping.periods) return null;
@@ -237,6 +253,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
 
       // Create a 7-day date map for the header (Monday to Sunday)
       // We look at the date objects to determine their weekday index
+
       const weekdayDateMap: (string | null)[] = [
         null,
         null,
@@ -248,7 +265,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
         null,
       ];
       periods.forEach((p) => {
-        const d = new Date(p.date);
+        const d = parseLocalDate(p.date.toString());
         let dayIdx = d.getDay(); // 0 is Sunday, 1-6 is Mon-Sat
         // Map to 0-6 where 0 is Monday, 6 is Sunday
         const adjustedIdx = dayIdx === 0 ? 6 : dayIdx - 1;
@@ -262,7 +279,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
           slot,
           cols: [0, 1, 2, 3, 4, 5, 6].map((dayIdx) =>
             periods.find((p) => {
-              const pd = new Date(p.date);
+              const pd = parseLocalDate(p.date.toString());
               let pIdx = pd.getDay();
               const adjustedPIdx = pIdx === 0 ? 6 : pIdx - 1;
               return adjustedPIdx === dayIdx && p.periodOfDay === slot;
@@ -290,7 +307,8 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
     );
 
   const formatDate = (d: Date | string, opts: Intl.DateTimeFormatOptions) => {
-    const dateObj = typeof d === "string" ? new Date(d) : d;
+    // Use parseLocalDate for strings to avoid timezone shifts
+    const dateObj = typeof d === "string" ? parseLocalDate(d) : d;
     return dateObj.toLocaleDateString("en-GB", opts);
   };
 
@@ -445,7 +463,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
               disabled={saving || !isAdmin}
               className="brand-button-gold text-xs px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? "Archiving..." : "Archive Snapshot"}
+              {saving ? "Archiving..." : "Save Output Design"}
             </button>
           </div>
         </div>

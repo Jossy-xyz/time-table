@@ -11,55 +11,50 @@ export const studentService = {
     return response as Student[];
   },
 
-  getById: async (id: number): Promise<Student> => {
-    // Note: If backend doesn't have a direct getById, we might need one or filter.
-    // For now, assume listing or a specific endpoint exists.
+  getById: async (id: string | number): Promise<Student> => {
     const all = await studentService.getAll();
-    const found = all.find((s) => s.id === id);
+    const found = all.find((s) => s.id.toString() === id.toString());
     if (!found) throw new Error("Student not found");
     return found;
   },
 
   create: async (studentData: Partial<Student>): Promise<Student> => {
-    // Mapping back to the @RequestBody expectations of the backend
+    // Mapping back to the @RequestBody expectations of the backend (fullName, programme, cenID)
     const payload = {
       matricNo: studentData.matricNo,
-      surname: studentData.surname,
-      firstname: studentData.firstname,
-      middlename: studentData.middlename,
-      gender: studentData.gender,
+      fullName: studentData.fullName,
+      programme: studentData.programme,
       level: studentData.level,
-      department: { id: studentData.departmentId },
-      program: { id: studentData.programId },
+      department: studentData.departmentId
+        ? { id: studentData.departmentId }
+        : null,
+      college: studentData.collegeId ? { id: studentData.collegeId } : null,
     };
     const response = await apiClient.post("/student/post", payload);
     return response as Student;
   },
 
   update: async (
-    id: number,
+    id: string | number,
     studentData: Partial<Student>,
   ): Promise<Student> => {
     const payload = {
       matricNo: studentData.matricNo,
-      surname: studentData.surname,
-      firstname: studentData.firstname,
-      middlename: studentData.middlename,
-      gender: studentData.gender,
+      fullName: studentData.fullName,
+      programme: studentData.programme,
       level: studentData.level,
-      // Pass IDs for relationships
       department: studentData.departmentId
         ? { id: studentData.departmentId }
         : undefined,
-      program: studentData.programId
-        ? { id: studentData.programId }
+      college: studentData.collegeId
+        ? { id: studentData.collegeId }
         : undefined,
     };
     const response = await apiClient.put(`/student/update/${id}`, payload);
     return response as Student;
   },
 
-  delete: async (id: number): Promise<void> => {
+  delete: async (id: string | number): Promise<void> => {
     await apiClient.delete(`/student/delete/${id}`);
   },
 };

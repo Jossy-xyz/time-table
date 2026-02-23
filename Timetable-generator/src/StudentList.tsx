@@ -14,7 +14,7 @@ interface StudentListProps {
  */
 export default function StudentList({ onStudentList }: StudentListProps) {
   const [students, setStudents] = useState<Student[]>([]);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<Student>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -42,8 +42,7 @@ export default function StudentList({ onStudentList }: StudentListProps) {
     const searchStr = searchQuery.toLowerCase();
     return (
       student.matricNo?.toLowerCase().includes(searchStr) ||
-      student.surname?.toLowerCase().includes(searchStr) ||
-      student.firstname?.toLowerCase().includes(searchStr)
+      student.fullName?.toLowerCase().includes(searchStr)
     );
   });
 
@@ -58,7 +57,7 @@ export default function StudentList({ onStudentList }: StudentListProps) {
     setEditData({ ...student });
   };
 
-  const handleSave = async (id: number) => {
+  const handleSave = async (id: string) => {
     try {
       await studentService.update(id, editData);
       toast.success("Student record committed to registry");
@@ -78,7 +77,7 @@ export default function StudentList({ onStudentList }: StudentListProps) {
     }));
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (
       !window.confirm("Purge student record from academic ledger permanently?")
     )
@@ -122,7 +121,7 @@ export default function StudentList({ onStudentList }: StudentListProps) {
             <th>Matric No.</th>
             <th>Full Name</th>
             <th className="text-center">Level</th>
-            <th className="text-center">Cycle</th>
+            <th className="text-center">Academic Programme</th>
             <th className="text-right">Actions</th>
           </tr>
         </thead>
@@ -137,48 +136,36 @@ export default function StudentList({ onStudentList }: StudentListProps) {
                   <td className="px-3 py-2">
                     <input
                       name="matricNo"
-                      value={editData.matricNo}
+                      value={editData.matricNo || ""}
                       onChange={handleInputChange}
                       className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs"
+                      readOnly // Natural keys shouldn't be edited
                     />
                   </td>
-                  <td className="px-3 py-2 flex gap-1">
+                  <td className="px-3 py-2">
                     <input
-                      name="surname"
-                      value={editData.surname}
+                      name="fullName"
+                      value={editData.fullName || ""}
                       onChange={handleInputChange}
-                      placeholder="Surname"
-                      className="w-1/3 bg-page border border-brick/20 px-2 py-1 rounded text-xs"
-                    />
-                    <input
-                      name="firstname"
-                      value={editData.firstname}
-                      onChange={handleInputChange}
-                      placeholder="Firstname"
-                      className="w-1/3 bg-page border border-brick/20 px-2 py-1 rounded text-xs"
-                    />
-                    <input
-                      name="middlename"
-                      value={editData.middlename}
-                      onChange={handleInputChange}
-                      placeholder="Middle"
-                      className="w-1/3 bg-page border border-brick/20 px-2 py-1 rounded text-xs"
+                      placeholder="FullName"
+                      className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs"
                     />
                   </td>
                   <td className="px-3 py-2">
                     <input
                       name="level"
-                      value={editData.level}
+                      value={editData.level || 100}
                       onChange={handleInputChange}
                       className="w-20 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
                     />
                   </td>
                   <td className="px-3 py-2">
                     <input
-                      name="startSession"
-                      value={editData.startSession}
+                      name="programme"
+                      value={editData.programme || ""}
                       onChange={handleInputChange}
-                      className="w-24 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
+                      placeholder="Programme"
+                      className="w-full mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
                     />
                   </td>
                   <td className="px-3 py-2 text-right space-x-2">
@@ -203,11 +190,8 @@ export default function StudentList({ onStudentList }: StudentListProps) {
                   </td>
                   <td>
                     <div className="flex flex-col">
-                      <span className="uppercase tracking-tight">
-                        {student.surname}, {student.firstname}
-                      </span>
-                      <span className="text-[10px] opacity-40 italic">
-                        {student.middlename || "No Middle Name"}
+                      <span className="uppercase tracking-tight text-xs font-bold">
+                        {student.fullName}
                       </span>
                     </div>
                   </td>
@@ -217,7 +201,7 @@ export default function StudentList({ onStudentList }: StudentListProps) {
                     </span>
                   </td>
                   <td className="text-center font-mono text-[10px] opacity-60 italic">
-                    {student.startSession}
+                    {student.programme}
                   </td>
                   <td className="text-right space-x-1">
                     <button

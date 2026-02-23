@@ -23,14 +23,11 @@ public class PeriodExclusionSnapshot {
     @Column(length = 255, nullable = false)
     private String name = "Untitled Snapshot";
     
-    @Column(columnDefinition = "TEXT")
-    private String description;
-    
-    @Column(name = "excluded_periods", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "excluded_periods", nullable = false, columnDefinition = "varchar(500)")
     private String excludedPeriods = "";
     
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive = false;
+    private Integer isActive = 0;
     
     @Column(name = "created_by", length = 100, nullable = false)
     private String createdBy = "system";
@@ -67,12 +64,8 @@ public class PeriodExclusionSnapshot {
         this.name = name;
     }
 
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
+    public Integer getIsActive() {
+        return isActive;
     }
 
     public String getExcludedPeriods() {
@@ -83,11 +76,7 @@ public class PeriodExclusionSnapshot {
         this.excludedPeriods = excludedPeriods;
     }
 
-    public Boolean getIsActive() {
-        return isActive;
-    }
-
-    public void setIsActive(Boolean isActive) {
+    public void setIsActive(Integer isActive) {
         this.isActive = isActive;
     }
 

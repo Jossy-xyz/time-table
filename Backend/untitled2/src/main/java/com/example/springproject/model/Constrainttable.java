@@ -13,9 +13,6 @@ public class Constrainttable {
     @Column(name = "name", length = 255)
     private String name = "Untitled Snapshot";
 
-    @Column(name = "description")
-    private String description;
-
     @Column(name = "record_date", updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date recordDate;
@@ -75,14 +72,6 @@ public class Constrainttable {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public Date getRecordDate() {

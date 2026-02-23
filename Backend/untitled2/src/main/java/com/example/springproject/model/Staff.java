@@ -4,66 +4,46 @@ import jakarta.persistence.*;
 import java.util.Date;
 
 @Entity
-@Table(name = "staff")
+@Table(name = "staffmc")
 public class Staff {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "serial")
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id")
-    private Department department;
+    @JoinColumn(name = "CollegeID", nullable = false)
+    private Centre college;
 
-    @Column(name = "staff_id", unique = true, nullable = false, length = 50)
+    @Column(name = "StaffID", unique = true, length = 10)
     private String staffId;
 
-    @Column(length = 100)
+    @Column(name = "Title", nullable = false, length = 10)
     private String title;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "Surname", length = 20)
     private String surname;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "FirstName", length = 20)
     private String firstname;
 
-    @Column(length = 255)
+    @Column(name = "MiddleName", length = 20)
     private String middlename;
 
-    @Column(name = "status_id", columnDefinition = "INT DEFAULT 1")
+    @Column(name = "StatusID", columnDefinition = "tinyint UNSIGNED DEFAULT 1")
     private Integer statusId;
 
-    @Column(columnDefinition = "INT DEFAULT 1")
-    private Integer type;
+    @Column(name = "InUse", columnDefinition = "tinyint UNSIGNED DEFAULT 1")
+    private Integer inUse;
 
-    @Column(name = "in_use", columnDefinition = "TINYINT(1) DEFAULT 1")
-    private Boolean inUse;
-
-    @Column(name = "duty_count", columnDefinition = "INT DEFAULT 0")
+    @Column(name = "DutyCount", columnDefinition = "smallint UNSIGNED DEFAULT 0")
     private Integer dutyCount;
 
-    @Column(length = 255)
-    private String specialization;
-
-    @Column(name = "research_area", length = 255)
-    private String researchArea;
-
-    @Column(length = 255)
-    private String discipline;
-
-    @Column(name = "short_name", length = 50)
+    @Column(name = "ShortName", length = 30, nullable = false)
     private String shortName;
-
-    @Column(name = "serial_no")
-    private Integer serialNo;
-
-    @Column(name = "created_at", updatable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = new Date();
-    }
+    
+    // Note: removed fields not in staffmc schema to minimize refactor risk
+    // specialization, research_area, discipline, serial_no are not in staffmc table
 
     public Integer getId() {
         return id;
@@ -73,12 +53,12 @@ public class Staff {
         this.id = id;
     }
 
-    public Department getDepartment() {
-        return department;
+    public Centre getCollege() {
+        return college;
     }
 
-    public void setDepartment(Department department) {
-        this.department = department;
+    public void setCollege(Centre college) {
+        this.college = college;
     }
 
     public String getStaffId() {
@@ -129,19 +109,11 @@ public class Staff {
         this.statusId = statusId;
     }
 
-    public Integer getType() {
-        return type;
-    }
-
-    public void setType(Integer type) {
-        this.type = type;
-    }
-
-    public Boolean getInUse() {
+    public Integer getInUse() {
         return inUse;
     }
 
-    public void setInUse(Boolean inUse) {
+    public void setInUse(Integer inUse) {
         this.inUse = inUse;
     }
 
@@ -153,52 +125,12 @@ public class Staff {
         this.dutyCount = dutyCount;
     }
 
-    public String getSpecialization() {
-        return specialization;
-    }
-
-    public void setSpecialization(String specialization) {
-        this.specialization = specialization;
-    }
-
-    public String getResearchArea() {
-        return researchArea;
-    }
-
-    public void setResearchArea(String researchArea) {
-        this.researchArea = researchArea;
-    }
-
-    public String getDiscipline() {
-        return discipline;
-    }
-
-    public void setDiscipline(String discipline) {
-        this.discipline = discipline;
-    }
-
     public String getShortName() {
         return shortName;
     }
 
     public void setShortName(String shortName) {
         this.shortName = shortName;
-    }
-
-    public Integer getSerialNo() {
-        return serialNo;
-    }
-
-    public void setSerialNo(Integer serialNo) {
-        this.serialNo = serialNo;
-    }
-
-    public Date getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
     }
 }
 

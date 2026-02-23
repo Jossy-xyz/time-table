@@ -1,9 +1,9 @@
 import { apiClient } from "./apiClient";
 
 export interface ExamSettingsPayload {
-  schedule_policy: string;
-  max_examl: string;
-  min_examl: string;
+  schedule_policy: number;
+  max_examl: number;
+  min_examl: number;
   exam_level_high_limit: string;
 }
 

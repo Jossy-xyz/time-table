@@ -22,14 +22,12 @@ public class Venuecontroller {
 
     @PostMapping("/post")
     public String add(@RequestBody Venue venue, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
-        policyService.enforceVenueAccess(actorUsername);
         venueservice.saveVenue(venue, actorUsername);
         return "Venue added successfully";
     }
 
     @PutMapping("/update/{id}")
     public VenueDto updateVenue(@PathVariable Integer id, @RequestBody Venue updatedVenue, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
-        policyService.enforceVenueAccess(actorUsername);
         Venue venue = venueservice.updateVenue(id, updatedVenue, actorUsername);
         return convertToDto(venue);
     }
@@ -47,7 +45,6 @@ public class Venuecontroller {
 
     @DeleteMapping("/delete/{id}")
     public String deleteVenue(@PathVariable Integer id, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
-        policyService.enforceVenueAccess(actorUsername);
         venueservice.deleteVenue(id, actorUsername);
         return "Venue deleted successfully";
     }
@@ -61,7 +58,6 @@ public class Venuecontroller {
         dto.setCapacity(venue.getCapacity());
         dto.setType(venue.getType());
         dto.setPreference(venue.getPreference());
-        dto.setLocation(venue.getLocation());
         dto.setActualCapacity(venue.getActualCapacity());
         dto.setInUse(venue.getInUse());
         return dto;

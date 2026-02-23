@@ -23,14 +23,13 @@ public class Departmentcontroller {
 
     @PostMapping("/post")
     public String add(@RequestBody Department department, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
-        // Admin or College Rep can add departments
-        departmentservice.saveDepartment(department);
+        departmentservice.saveDepartment(department, actorUsername);
         return "Department added successfully";
     }
 
     @PutMapping("/update/{id}")
     public DepartmentDto updateDepartment(@PathVariable int id, @RequestBody Department updatedDepartment, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
-        Department dept = departmentservice.updateDepartment(id, updatedDepartment);
+        Department dept = departmentservice.updateDepartment(id, updatedDepartment, actorUsername);
         return convertToDto(dept);
     }
 
@@ -65,7 +64,7 @@ public class Departmentcontroller {
 
     @DeleteMapping("/delete/{id}")
     public String deleteDepartment(@PathVariable int id, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
-        departmentservice.deleteDepartment(id);
+        departmentservice.deleteDepartment(id, actorUsername);
         return "Department deleted successfully";
     }
 

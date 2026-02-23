@@ -9,44 +9,46 @@ import java.util.List;
 public class Program {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "ID")
     private Integer id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
-    private Department department;
-
-    @Column(unique = true, length = 50)
-    private String code;
-
-    @Column(nullable = false, length = 255)
+    @Column(name = "Name", nullable = false, length = 60)
     private String name;
 
-    @Column(columnDefinition = "INT DEFAULT 4")
+    @Column(name = "code", length = 60)
+    private String code;
+
+    @Column(name = "NameCode", length = 80)
+    private String nameCode;
+
+    @Column(name = "Duration", columnDefinition = "tinyint UNSIGNED")
     private Integer duration;
 
-    @Column(name = "total_comp_units", columnDefinition = "INT DEFAULT 0")
+    @Column(name = "TCompU", columnDefinition = "smallint UNSIGNED")
     private Integer totalCompulsoryUnits;
 
-    @Column(name = "total_req_units", columnDefinition = "INT DEFAULT 0")
+    @Column(name = "TReqU", columnDefinition = "smallint UNSIGNED")
     private Integer totalRequiredUnits;
 
-    @Column(name = "min_elective_units", columnDefinition = "INT DEFAULT 0")
+    @Column(name = "MinEU", columnDefinition = "smallint UNSIGNED")
     private Integer minElectiveUnits;
 
-    @Column(name = "entry_req", columnDefinition = "TEXT")
+    @Column(name = "EntryReq", columnDefinition = "text")
     private String entryRequirements;
 
-    @Column(name = "created_at", updatable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
+    @Column(name = "newCodeID", columnDefinition = "tinyint UNSIGNED")
+    private Integer newCodeId;
 
-    @OneToMany(mappedBy = "program", cascade = CascadeType.ALL)
-    private List<Student> students;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "DeptID")
+    private Department department;
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = new Date();
-    }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "CollegeID")
+    private Centre centre;
+
+    @Column(name = "CoordID", columnDefinition = "int UNSIGNED")
+    private Integer coordinatorId;
 
     public Integer getId() {
         return id;
@@ -56,12 +58,12 @@ public class Program {
         this.id = id;
     }
 
-    public Department getDepartment() {
-        return department;
+    public String getName() {
+        return name;
     }
 
-    public void setDepartment(Department department) {
-        this.department = department;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getCode() {
@@ -72,12 +74,12 @@ public class Program {
         this.code = code;
     }
 
-    public String getName() {
-        return name;
+    public String getNameCode() {
+        return nameCode;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setNameCode(String nameCode) {
+        this.nameCode = nameCode;
     }
 
     public Integer getDuration() {
@@ -120,19 +122,35 @@ public class Program {
         this.entryRequirements = entryRequirements;
     }
 
-    public Date getCreatedAt() {
-        return createdAt;
+    public Integer getNewCodeId() {
+        return newCodeId;
     }
 
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
+    public void setNewCodeId(Integer newCodeId) {
+        this.newCodeId = newCodeId;
     }
 
-    public List<Student> getStudents() {
-        return students;
+    public Department getDepartment() {
+        return department;
     }
 
-    public void setStudents(List<Student> students) {
-        this.students = students;
+    public void setDepartment(Department department) {
+        this.department = department;
+    }
+
+    public Centre getCentre() {
+        return centre;
+    }
+
+    public void setCentre(Centre centre) {
+        this.centre = centre;
+    }
+
+    public Integer getCoordinatorId() {
+        return coordinatorId;
+    }
+
+    public void setCoordinatorId(Integer coordinatorId) {
+        this.coordinatorId = coordinatorId;
     }
 }

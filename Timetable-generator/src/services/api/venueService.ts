@@ -23,11 +23,11 @@ export const venueService = {
       venueCode: venueData.venueCode,
       name: venueData.name,
       capacity: venueData.capacity,
+      actualCapacity: venueData.actualCapacity,
       type: venueData.type,
       preference: venueData.preference,
-      location: venueData.location,
       inUse: venueData.inUse,
-      centre: { id: venueData.centreId },
+      centre: venueData.centreId ? { id: venueData.centreId } : null,
     };
     await apiClient.post("/venue/post", payload);
   },
@@ -37,9 +37,9 @@ export const venueService = {
       venueCode: venueData.venueCode,
       name: venueData.name,
       capacity: venueData.capacity,
+      actualCapacity: venueData.actualCapacity,
       type: venueData.type,
       preference: venueData.preference,
-      location: venueData.location,
       inUse: venueData.inUse,
       centre: venueData.centreId ? { id: venueData.centreId } : undefined,
     };

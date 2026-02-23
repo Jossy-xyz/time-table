@@ -24,9 +24,10 @@ export default function VenueList({ onVenueList }: VenueListProps) {
     venueCode: "",
     name: "",
     capacity: 0,
+    actualCapacity: 0,
     type: 1,
     preference: 1,
-    location: "",
+    inUse: true,
   });
 
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -41,9 +42,14 @@ export default function VenueList({ onVenueList }: VenueListProps) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: ["capacity", "type", "preference"].includes(name)
+      ...prev,
+      [name]: ["capacity", "actualCapacity", "type", "preference"].includes(
+        name,
+      )
         ? parseInt(value)
-        : value,
+        : name === "inUse"
+          ? (e.target as HTMLInputElement).checked
+          : value,
     }));
   };
 
@@ -72,8 +78,7 @@ export default function VenueList({ onVenueList }: VenueListProps) {
     const searchStr = searchQuery.toLowerCase();
     return (
       venue.venueCode?.toLowerCase().includes(searchStr) ||
-      venue.name?.toLowerCase().includes(searchStr) ||
-      venue.location?.toLowerCase().includes(searchStr)
+      venue.name?.toLowerCase().includes(searchStr)
     );
   });
 
@@ -99,9 +104,10 @@ export default function VenueList({ onVenueList }: VenueListProps) {
         venueCode: "",
         name: "",
         capacity: 0,
+        actualCapacity: 0,
         type: 1,
         preference: 1,
-        location: "",
+        inUse: true,
       });
       fetchVenues();
     } catch (error: any) {
@@ -161,9 +167,9 @@ export default function VenueList({ onVenueList }: VenueListProps) {
               },
               { label: "Official Name", name: "name" },
               { label: "Max Capacity", name: "capacity" },
+              { label: "Actual Capacity", name: "actualCapacity" },
               { label: "Type ID", name: "type" },
               { label: "Allocation Pref.", name: "preference" },
-              { label: "Geospatial Location", name: "location" },
             ].map((field) => (
               <div key={field.name} className="space-y-2">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
@@ -219,9 +225,9 @@ export default function VenueList({ onVenueList }: VenueListProps) {
             <tr>
               <th>Venue Code</th>
               <th>Designation</th>
-              <th className="text-center">Capacity</th>
+              <th className="text-center">Capacity (Max/Act)</th>
               <th className="text-center">Preference</th>
-              <th>Location Sector</th>
+              <th className="text-center">Status</th>
               <th className="text-right">Actions</th>
             </tr>
           </thead>
@@ -258,16 +264,31 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                       />
                     </td>
                     <td className="px-4 py-2 text-center">
-                      <input
-                        value={editVenueData.capacity}
-                        onChange={(e) =>
-                          setEditVenueData((p) => ({
-                            ...p,
-                            capacity: parseInt(e.target.value),
-                          }))
-                        }
-                        className="w-16 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
-                      />
+                      <div className="flex items-center justify-center gap-1">
+                        <input
+                          value={editVenueData.capacity}
+                          onChange={(e) =>
+                            setEditVenueData((p) => ({
+                              ...p,
+                              capacity: parseInt(e.target.value),
+                            }))
+                          }
+                          className="w-12 bg-page border border-brick/20 px-1 py-1 rounded text-xs text-center"
+                          placeholder="Max"
+                        />
+                        <span className="text-institutional-muted">/</span>
+                        <input
+                          value={editVenueData.actualCapacity}
+                          onChange={(e) =>
+                            setEditVenueData((p) => ({
+                              ...p,
+                              actualCapacity: parseInt(e.target.value),
+                            }))
+                          }
+                          className="w-12 bg-page border border-brick/20 px-1 py-1 rounded text-xs text-center"
+                          placeholder="Act"
+                        />
+                      </div>
                     </td>
                     <td className="px-4 py-2 text-center">
                       <input
@@ -281,16 +302,17 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                         className="w-16 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
                       />
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 text-center">
                       <input
-                        value={editVenueData.location}
+                        type="checkbox"
+                        checked={editVenueData.inUse}
                         onChange={(e) =>
                           setEditVenueData((p) => ({
                             ...p,
-                            location: e.target.value,
+                            inUse: e.target.checked,
                           }))
                         }
-                        className="w-full bg-page border border-brick/20 px-2 py-1 rounded text-xs"
+                        className="h-4 w-4 text-brick rounded border-gray-300 focus:ring-brick"
                       />
                     </td>
                     <td className="px-4 py-2 text-right space-x-2">
@@ -318,15 +340,25 @@ export default function VenueList({ onVenueList }: VenueListProps) {
                     </td>
                     <td className="text-center font-black opacity-80">
                       {venue.capacity}{" "}
-                      <span className="text-[10px] opacity-40">Max</span>
+                      <span className="text-[10px] opacity-40">
+                        / {venue.actualCapacity}
+                      </span>
                     </td>
                     <td className="text-center">
                       <span className="status-pill status-pill-info">
                         Rank {venue.preference}
                       </span>
                     </td>
-                    <td className="text-[10px] uppercase font-black opacity-40 italic">
-                      {venue.location}
+                    <td className="text-center">
+                      <span
+                        className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+                          venue.inUse
+                            ? "bg-status-success/10 text-status-success"
+                            : "bg-status-error/10 text-status-error"
+                        }`}
+                      >
+                        {venue.inUse ? "Active" : "Inactive"}
+                      </span>
                     </td>
                     <td className="text-right space-x-1">
                       <button

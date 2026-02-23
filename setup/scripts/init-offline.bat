@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+cd /d "%~dp0"
 title Bells University - Smart Initializer
 set "GRADLE_ZIP=gradle-8.14.4-all.zip"
 set "GRADLE_URL=https://services.gradle.org/distributions/!GRADLE_ZIP!"

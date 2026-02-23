@@ -81,9 +81,15 @@ public class PeriodCalculationService {
             return LocalDate.now();
         }
         
-        // Robust conversion preserving face-value date components
-        // distinct from Instant/Timezone shifts
-        java.util.Calendar cal = java.util.Calendar.getInstance();
+        // Robust conversion handling SQL Date (from DB) and UTIL Date (from JSON/Jackson)
+        if (dateToConvert instanceof java.sql.Date) {
+            return ((java.sql.Date) dateToConvert).toLocalDate();
+        }
+
+        // For java.util.Date, assume it stores a timestamp. 
+        // If it came from Jackson parsing "YYYY-MM-DD", it's likely UTC midnight.
+        // We use UTC calendar to extract the exact components to avoid timezone shifts.
+        java.util.Calendar cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
         cal.setTime(dateToConvert);
         
         return LocalDate.of(

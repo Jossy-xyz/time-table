@@ -25,8 +25,7 @@ public class Centrecontroller {
                      @RequestParam(value = "username", required = false) String usernameParam,
                      @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
-        policyService.enforceScope(actorUsername, null, null);
-        centreService.saveCentre(centre);
+        centreService.saveCentre(centre, actorUsername);
         return "Centre added successfully";
     }
 
@@ -35,8 +34,7 @@ public class Centrecontroller {
                                  @RequestParam(value = "username", required = false) String usernameParam,
                                  @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
-        policyService.enforceScope(actorUsername, null, null);
-        Centre centre = centreService.updateCentre(id, updatedCentre);
+        Centre centre = centreService.updateCentre(id, updatedCentre, actorUsername);
         return convertToDto(centre);
     }
 
@@ -53,8 +51,7 @@ public class Centrecontroller {
                               @RequestParam(value = "username", required = false) String usernameParam,
                               @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
-        policyService.enforceScope(actorUsername, null, null);
-        centreService.deleteCentre(id);
+        centreService.deleteCentre(id, actorUsername);
         return "Centre deleted successfully";
     }
 

@@ -22,7 +22,14 @@ export const programService = {
     const payload = {
       code: programData.code,
       name: programData.name,
-      department: { id: programData.departmentId },
+      duration: programData.duration,
+      totalCompulsoryUnits: programData.totalCompulsoryUnits,
+      totalRequiredUnits: programData.totalRequiredUnits,
+      minElectiveUnits: programData.minElectiveUnits,
+      entryRequirements: programData.entryRequirements,
+      department: programData.departmentId
+        ? { id: programData.departmentId }
+        : null,
     };
     const response = await apiClient.post("/program/post", payload);
     return response as Program;

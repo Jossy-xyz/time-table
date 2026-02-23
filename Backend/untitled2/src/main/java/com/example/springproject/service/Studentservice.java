@@ -9,6 +9,6 @@ public interface Studentservice {
      List<Student> getAllStudents();
      List<Student> getStudentsByDepartment(Department department);
      List<Student> getStudentsByCollege(Integer collegeId);
-     Student updateStudent(Integer id, Student updatedStudent, String actorUsername);
-     void deleteStudent(Integer id, String actorUsername);
+     Student updateStudent(String id, Student updatedStudent, String actorUsername);
+     void deleteStudent(String id, String actorUsername);
 }

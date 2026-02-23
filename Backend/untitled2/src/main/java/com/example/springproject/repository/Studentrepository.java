@@ -6,9 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface Studentrepository extends JpaRepository<Student, Integer> {
+public interface Studentrepository extends JpaRepository<Student, String> {
     List<Student> findByDepartment(Department department);
-    List<Student> findByDepartmentCentreId(Integer centreId);
-    Optional<Student> findByMatricNo(String matricNo);
+    List<Student> findByCollegeId(Integer collegeId);
+    Student findByMatricNo(String matricNo);
     boolean existsByMatricNo(String matricNo);
 }

@@ -7,7 +7,6 @@ public class PeriodExclusionDto {
     private Long id;
     private Long generalSettingsId;
     private String name;
-    private String description;
     private List<Integer> excludedPeriods;
     private Boolean isActive;
     private String createdBy;
@@ -25,9 +24,6 @@ public class PeriodExclusionDto {
     
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
     
     public List<Integer> getExcludedPeriods() { return excludedPeriods; }
     public void setExcludedPeriods(List<Integer> excludedPeriods) { this.excludedPeriods = excludedPeriods; }

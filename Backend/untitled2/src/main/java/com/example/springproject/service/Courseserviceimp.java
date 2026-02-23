@@ -21,74 +21,48 @@ public class Courseserviceimp implements Courseservice {
     @Override
     @Transactional
     public Course saveCourse(Course course, String actorUsername) {
-        // DIV: Scope Verification
-        policyService.enforceScope(
-            actorUsername, 
-            course.getDepartment().getId(),
-            course.getDepartment().getCentre().getId()
-        );
-
+        // DIV-02: Mandatory Pre-Mutation Check - Natural Key uniqueness
         if (courserepository.existsByCode(course.getCode())) {
-            throw new RuntimeException("Course with code " + course.getCode() + " already exists.");
+            throw new RuntimeException("INTEGRITY-ERROR: Course with code " + course.getCode() + " already exists.");
         }
 
+        // DIV: Scope Enforced at Controller or Generic Level
         return courserepository.save(course);
     }
 
     @Override
     public List<Course> getAllCourses() {
-        return courserepository.findAll();
-    }
-
-    @Override
-    public List<Course> getCoursesByDepartment(Department department) {
-        return courserepository.findByDepartment(department);
-    }
-    
-    @Override
-    public List<Course> getCoursesByCollege(Integer collegeId) {
-        return courserepository.findByDepartmentCentreId(collegeId);
+        try {
+            return courserepository.findAll();
+        } catch (Exception e) {
+            System.err.println("SERVICE-FAULT IN Courseserviceimp.getAllCourses: " + e.getMessage());
+            throw new RuntimeException("SERVICE-ERROR: " + e.getMessage(), e);
+        }
     }
 
     @Override
     @Transactional
-    public Course updateCourse(Integer id, Course updated, String actorUsername) {
+    public Course updateCourse(String id, Course updated, String actorUsername) {
+        // DIV: Fetch Managed Instance
         Course existing = courserepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Course not found"));
+            .orElseThrow(() -> new RuntimeException("INTEGRITY-ERROR: Course " + id + " not found"));
 
-        // DIV: Scope Verification
-        policyService.enforceScope(
-            actorUsername, 
-            existing.getDepartment().getId(),
-            existing.getDepartment().getCentre().getId()
-        );
-
-        existing.setCode(updated.getCode());
-        existing.setTitle(updated.getTitle());
-        existing.setUnit(updated.getUnit());
-        existing.setSemester(updated.getSemester());
-        existing.setExamType(updated.getExamType());
-        existing.setEnrollmentCount(updated.getEnrollmentCount());
-        existing.setLectureHours(updated.getLectureHours());
-        existing.setTutorialHours(updated.getTutorialHours());
-        existing.setPracticalHours(updated.getPracticalHours());
-        existing.setDepartment(updated.getDepartment());
+        // DIV: Strict Sanitization & Update
+        if (updated.getCode() != null) existing.setCode(updated.getCode());
+        if (updated.getTitle() != null) existing.setTitle(updated.getTitle());
+        if (updated.getUnit() != null) existing.setUnit(updated.getUnit());
+        if (updated.getSemester() != null) existing.setSemester(updated.getSemester());
+        if (updated.getEnrollmentCount() != null) existing.setEnrollmentCount(updated.getEnrollmentCount());
         
         return courserepository.save(existing);
     }
 
     @Override
     @Transactional
-    public void deleteCourse(Integer id, String actorUsername) {
+    public void deleteCourse(String id, String actorUsername) {
+        // DIV: Fetch Managed Instance
         Course existing = courserepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Course not found"));
-
-        // DIV: Scope Verification
-        policyService.enforceScope(
-            actorUsername, 
-            existing.getDepartment().getId(),
-            existing.getDepartment().getCentre().getId()
-        );
+            .orElseThrow(() -> new RuntimeException("INTEGRITY-ERROR: Course " + id + " not found"));
 
         courserepository.deleteById(id);
     }

@@ -21,16 +21,22 @@ public class Studentserviceimp implements Studentservice {
     @Override
     @Transactional
     public Student saveStudent(Student student, String actorUsername) {
-        // DIV: Scope Verification
+        // DIV-01: Integrity Enforcement - Verify FK inputs
+        if (student.getCollege() == null || student.getCollege().getId() == null) {
+            throw new IllegalArgumentException("DIV-VIOLATION: Student MUST be assigned to a College (cenID)");
+        }
+
+        // DIV-02: Mandatory Pre-Mutation Check - Natural Key uniqueness
+        if (studentrepository.existsByMatricNo(student.getMatricNo())) {
+            throw new RuntimeException("INTEGRITY-ERROR: Student with Matric No " + student.getMatricNo() + " already exists.");
+        }
+
+        // DIV-03: PEL Integration - Hierarchy defines scope
         policyService.enforceScope(
             actorUsername, 
-            student.getDepartment().getId(),
-            student.getDepartment().getCentre().getId()
+            student.getDepartment() != null ? student.getDepartment().getId() : null,
+            student.getCollege().getId()
         );
-
-        if (studentrepository.existsByMatricNo(student.getMatricNo())) {
-            throw new RuntimeException("Student with Matric No " + student.getMatricNo() + " already exists.");
-        }
 
         return studentrepository.save(student);
     }
@@ -47,47 +53,46 @@ public class Studentserviceimp implements Studentservice {
 
     @Override
     public List<Student> getStudentsByCollege(Integer collegeId) {
-        return studentrepository.findByDepartmentCentreId(collegeId);
+        return studentrepository.findByCollegeId(collegeId);
     }
 
     @Override
     @Transactional
-    public Student updateStudent(Integer id, Student updated, String actorUsername) {
+    public Student updateStudent(String id, Student updated, String actorUsername) {
+        // DIV: Fetch Managed Instance
         Student existing = studentrepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Student not found"));
+            .orElseThrow(() -> new RuntimeException("INTEGRITY-ERROR: Student " + id + " not found"));
 
-        // DIV: Scope Verification
+        // DIV: PEL Integration
         policyService.enforceScope(
             actorUsername, 
-            existing.getDepartment().getId(),
-            existing.getDepartment().getCentre().getId()
+            existing.getDepartment() != null ? existing.getDepartment().getId() : null,
+            existing.getCollege().getId()
         );
 
-        existing.setMatricNo(updated.getMatricNo());
-        existing.setSurname(updated.getSurname());
-        existing.setFirstname(updated.getFirstname());
-        existing.setMiddlename(updated.getMiddlename());
-        existing.setLevel(updated.getLevel());
-        existing.setGender(updated.getGender());
-        existing.setStartSession(updated.getStartSession());
-        existing.setProgrammeName(updated.getProgrammeName());
-        existing.setDepartment(updated.getDepartment());
-        existing.setProgram(updated.getProgram());
+        // DIV: Strict Sanitization & Update
+        if (updated.getMatricNo() != null) existing.setMatricNo(updated.getMatricNo());
+        if (updated.getFullName() != null) existing.setFullName(updated.getFullName());
+        if (updated.getLevel() != null) existing.setLevel(updated.getLevel());
+        if (updated.getProgramme() != null) existing.setProgramme(updated.getProgramme());
+        if (updated.getDepartment() != null) existing.setDepartment(updated.getDepartment());
+        if (updated.getCollege() != null) existing.setCollege(updated.getCollege());
         
         return studentrepository.save(existing);
     }
 
     @Override
     @Transactional
-    public void deleteStudent(Integer id, String actorUsername) {
+    public void deleteStudent(String id, String actorUsername) {
+        // DIV: Fetch Managed Instance
         Student existing = studentrepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Student not found"));
+            .orElseThrow(() -> new RuntimeException("INTEGRITY-ERROR: Student " + id + " not found"));
 
-        // DIV: Scope Verification
+        // DIV: PEL Integration
         policyService.enforceScope(
             actorUsername, 
-            existing.getDepartment().getId(),
-            existing.getDepartment().getCentre().getId()
+            existing.getDepartment() != null ? existing.getDepartment().getId() : null,
+            existing.getCollege().getId()
         );
 
         studentrepository.deleteById(id);

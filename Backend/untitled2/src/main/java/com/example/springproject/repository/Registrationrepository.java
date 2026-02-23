@@ -9,5 +9,6 @@ import java.util.List;
 public interface Registrationrepository extends JpaRepository<Registration, Long> {
     List<Registration> findByStudentAndSessionAndSemester(Student student, String session, Integer semester);
     List<Registration> findByCourseAndSessionAndSemester(Course course, String session, Integer semester);
-    boolean existsByStudentAndCourseAndSession(Student student, Course course, String session);
+    List<Registration> findByCollegeId(Integer collegeId);
+    boolean existsByStudentAndCourseAndSessionAndSemester(Student student, Course course, String session, Integer semester);
 }

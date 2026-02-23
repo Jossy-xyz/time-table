@@ -5,8 +5,8 @@ import lombok.Data;
 @Data
 public class RegistrationDto {
     private Long id;
-    private Integer studentId;
-    private Integer courseId;
+    private String studentId; // Natural Key (matricNo)
+    private String courseId; // Natural Key (courseCode)
     private String session;
     private Integer semester;
 }

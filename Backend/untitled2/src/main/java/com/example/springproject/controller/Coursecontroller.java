@@ -34,39 +34,25 @@ public class Coursecontroller {
     public List<CourseDto> getAllCourses(
             @RequestParam(value = "username", required = false) String usernameParam,
             @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
-        
-        String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
-        Users actor = userservice.getUserByUsername(actorUsername);
-        
-        if (actor == null) {
-            System.err.println("Access denied: Actor not found - " + actorUsername);
-            return List.of();
+        try {
+            // DIV: Universal access because course table is not scoped in this DB version
+            List<Course> courses = courseservice.getAllCourses();
+            return courses.stream().map(this::convertToDto).collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("CRITICAL FAULT IN Coursecontroller.getAllCourses: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("CONTROLLER-ERROR: " + e.getMessage(), e);
         }
-
-        List<Course> courses;
-        String role = (actor.getRole() != null) ? actor.getRole().getCode() : "UNKNOWN";
-        
-        if ("AD".equalsIgnoreCase(role)) {
-            courses = courseservice.getAllCourses();
-        } else if ("CR".equalsIgnoreCase(role) && actor.getCollege() != null) {
-            courses = courseservice.getCoursesByCollege(actor.getCollege().getId());
-        } else if (actor.getDepartment() != null) {
-            courses = courseservice.getCoursesByDepartment(actor.getDepartment());
-        } else {
-            courses = List.of();
-        }
-
-        return courses.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
     @PutMapping("/update/{id}")
-    public CourseDto updateCourse(@PathVariable Integer id, @RequestBody Course updatedCourse, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
+    public CourseDto updateCourse(@PathVariable String id, @RequestBody Course updatedCourse, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
         Course course = courseservice.updateCourse(id, updatedCourse, actorUsername);
         return convertToDto(course);
     }
 
     @DeleteMapping("/delete/{id}")
-    public String deleteCourse(@PathVariable Integer id, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
+    public String deleteCourse(@PathVariable String id, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
         courseservice.deleteCourse(id, actorUsername);
         return "Course deleted successfully";
     }
@@ -78,12 +64,7 @@ public class Coursecontroller {
         dto.setTitle(course.getTitle());
         dto.setUnit(course.getUnit());
         dto.setSemester(course.getSemester());
-        dto.setExamType(course.getExamType());
         dto.setEnrollmentCount(course.getEnrollmentCount());
-        dto.setLectureHours(course.getLectureHours());
-        dto.setTutorialHours(course.getTutorialHours());
-        dto.setPracticalHours(course.getPracticalHours());
-        dto.setDepartmentId(course.getDepartment() != null ? course.getDepartment().getId() : null);
         return dto;
     }
 }

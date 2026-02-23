@@ -9,23 +9,29 @@ import java.util.List;
 public class Centre {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Integer id;
 
-    @Column(unique = true, nullable = false, length = 50)
+    @Column(name = "Code", unique = true, nullable = false, length = 10)
     private String code;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "name", length = 120)
     private String name;
 
-    @Column(columnDefinition = "INT DEFAULT 1")
+    @Column(name = "type", columnDefinition = "tinyint UNSIGNED")
     private Integer type;
 
-    @Column(length = 100)
+    @Column(name = "state", length = 20)
     private String state;
 
-    @Column(name = "created_at", updatable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
+    @Column(name = "enCount", columnDefinition = "int UNSIGNED")
+    private Integer enrollmentCount;
+
+    @Column(name = "totalVCap", columnDefinition = "int UNSIGNED")
+    private Integer totalVenueCapacity;
+
+    @Column(name = "zoneCount", nullable = false, columnDefinition = "tinyint UNSIGNED DEFAULT 0")
+    private Integer zoneCount;
 
     @OneToMany(mappedBy = "centre", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Department> departments;
@@ -33,10 +39,8 @@ public class Centre {
     @OneToMany(mappedBy = "centre", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Venue> venues;
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = new Date();
-    }
+    @OneToMany(mappedBy = "college", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Staff> staffMembers;
 
     public Integer getId() {
         return id;
@@ -78,12 +82,28 @@ public class Centre {
         this.state = state;
     }
 
-    public Date getCreatedAt() {
-        return createdAt;
+    public Integer getEnrollmentCount() {
+        return enrollmentCount;
     }
 
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
+    public void setEnrollmentCount(Integer enrollmentCount) {
+        this.enrollmentCount = enrollmentCount;
+    }
+
+    public Integer getTotalVenueCapacity() {
+        return totalVenueCapacity;
+    }
+
+    public void setTotalVenueCapacity(Integer totalVenueCapacity) {
+        this.totalVenueCapacity = totalVenueCapacity;
+    }
+
+    public Integer getZoneCount() {
+        return zoneCount;
+    }
+
+    public void setZoneCount(Integer zoneCount) {
+        this.zoneCount = zoneCount;
     }
 
     public List<Department> getDepartments() {
@@ -100,5 +120,13 @@ public class Centre {
 
     public void setVenues(List<Venue> venues) {
         this.venues = venues;
+    }
+
+    public List<Staff> getStaffMembers() {
+        return staffMembers;
+    }
+
+    public void setStaffMembers(List<Staff> staffMembers) {
+        this.staffMembers = staffMembers;
     }
 }

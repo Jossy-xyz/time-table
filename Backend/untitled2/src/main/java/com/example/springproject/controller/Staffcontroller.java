@@ -78,12 +78,9 @@ public class Staffcontroller {
         dto.setFirstname(staff.getFirstname());
         dto.setMiddlename(staff.getMiddlename());
         dto.setStatusId(staff.getStatusId());
-        dto.setType(staff.getType());
-        dto.setInUse(staff.getInUse());
+        dto.setInUse(staff.getInUse() != null && staff.getInUse() == 1);
         dto.setDutyCount(staff.getDutyCount());
-        dto.setSpecialization(staff.getSpecialization());
-        dto.setResearchArea(staff.getResearchArea());
-        dto.setDepartmentId(staff.getDepartment() != null ? staff.getDepartment().getId() : null);
+        dto.setCollegeId(staff.getCollege() != null ? staff.getCollege().getId() : null);
         return dto;
     }
 }

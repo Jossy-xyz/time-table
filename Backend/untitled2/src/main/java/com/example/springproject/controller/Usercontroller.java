@@ -25,8 +25,9 @@ public class Usercontroller {
     private PasswordEncoder passwordEncoder;
 
     @PostMapping("/register")
-    public UserDto register(@RequestBody Users user) {
-        Users saved = userservice.saveUser(user);
+    public UserDto register(@RequestBody Users user, 
+                           @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
+        Users saved = userservice.saveUser(user, actorUsername);
         return convertToDto(saved);
     }
 

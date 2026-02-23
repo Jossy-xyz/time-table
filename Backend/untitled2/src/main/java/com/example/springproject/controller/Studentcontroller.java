@@ -57,31 +57,27 @@ public class Studentcontroller {
         return "Student added successfully";
     }
 
-    @PutMapping("/update/{id}")
-    public StudentDto updateStudent(@PathVariable Integer id, @RequestBody Student updatedStudent, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
+    @PutMapping("/update/{id:.+}")
+    public StudentDto updateStudent(@PathVariable String id, @RequestBody Student updatedStudent, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
         Student student = studentservice.updateStudent(id, updatedStudent, actorUsername);
         return convertToDto(student);
     }
 
-    @DeleteMapping("/delete/{id}")
-    public String deleteStudent(@PathVariable Integer id, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
+    @DeleteMapping("/delete/{id:.+}")
+    public String deleteStudent(@PathVariable String id, @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername) {
         studentservice.deleteStudent(id, actorUsername);
         return "Student deleted successfully";
     }
 
     private StudentDto convertToDto(Student student) {
         StudentDto dto = new StudentDto();
-        dto.setId(student.getId());
+        dto.setId(student.getId()); // Natural Key (matricNo)
         dto.setMatricNo(student.getMatricNo());
-        dto.setSurname(student.getSurname());
-        dto.setFirstname(student.getFirstname());
-        dto.setMiddlename(student.getMiddlename());
-        dto.setGender(student.getGender());
-        dto.setStartSession(student.getStartSession());
+        dto.setFullName(student.getFullName());
         dto.setLevel(student.getLevel());
         dto.setDepartmentId(student.getDepartment() != null ? student.getDepartment().getId() : null);
-        dto.setProgramId(student.getProgram() != null ? student.getProgram().getId() : null);
-        dto.setProgrammeName(student.getProgrammeName());
+        dto.setCollegeId(student.getCollege() != null ? student.getCollege().getId() : null);
+        dto.setProgramme(student.getProgramme());
         return dto;
     }
 }

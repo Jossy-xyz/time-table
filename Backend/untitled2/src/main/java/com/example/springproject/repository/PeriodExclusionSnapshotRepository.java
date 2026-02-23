@@ -13,11 +13,11 @@ import java.util.Optional;
 @Repository
 public interface PeriodExclusionSnapshotRepository extends JpaRepository<PeriodExclusionSnapshot, Long> {
     
-    Optional<PeriodExclusionSnapshot> findByGeneralSettingsIdAndIsActive(Long generalSettingsId, Boolean isActive);
+    Optional<PeriodExclusionSnapshot> findByGeneralSettingsIdAndIsActive(Long generalSettingsId, Integer isActive);
     
     List<PeriodExclusionSnapshot> findByGeneralSettingsIdOrderByCreatedAtDesc(Long generalSettingsId);
     
     @Modifying
-    @Query("UPDATE PeriodExclusionSnapshot p SET p.isActive = false WHERE p.generalSettings.id = :generalSettingsId")
+    @Query("UPDATE PeriodExclusionSnapshot p SET p.isActive = 0 WHERE p.generalSettings.id = :generalSettingsId")
     void deactivateAllByGeneralSettingsId(@Param("generalSettingsId") Long generalSettingsId);
 }

@@ -11,10 +11,7 @@ public class StaffDto {
     private String firstname;
     private String middlename;
     private Integer statusId;
-    private Integer type;
     private Boolean inUse;
     private Integer dutyCount;
-    private String specialization;
-    private String researchArea;
-    private Integer departmentId;
+    private Integer collegeId;
 }

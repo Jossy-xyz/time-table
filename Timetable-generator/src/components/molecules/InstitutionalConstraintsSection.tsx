@@ -466,7 +466,7 @@ const InstitutionalConstraintsSection: React.FC<
       setConfirmModal({ isOpen: false, action: "add" });
       toast.success("Snapshot Archived Successfully");
     } catch {
-      toast.error("Failed to archive snapshot");
+      toast.error("Failed to save output design");
     } finally {
       setIsSaving(false);
     }

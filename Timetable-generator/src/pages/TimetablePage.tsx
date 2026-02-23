@@ -13,6 +13,7 @@ import {
 import { toast } from "react-toastify";
 import { generalSettingsService } from "../services/api/generalSettingsService";
 import { constraintService } from "../services/api/constraintService";
+import { courseService } from "../services/api/courseService";
 import { algorithmService } from "../services/api/algorithmService";
 import { GeneralSettings } from "../types/institutional";
 import { periodExclusionService } from "../services/api/periodExclusionService";
@@ -80,15 +81,7 @@ const TimetablePage: React.FC = () => {
             generalSettingsService.get(),
             constraintService.getLatest(),
             periodExclusionService.getActiveExclusions(),
-            fetch(
-              `http://localhost:8080/course/get?username=${user?.username || localStorage.getItem("username")}`,
-              {
-                headers: {
-                  "X-Actor-Username":
-                    user?.username || localStorage.getItem("username") || "",
-                },
-              },
-            ).then((res) => res.json()),
+            courseService.getAll(),
           ]);
 
         // 2. Fetch Admin-Only Data (Histories)
@@ -156,8 +149,7 @@ const TimetablePage: React.FC = () => {
 
   const generateCsv = async () => {
     try {
-      const res = await fetch("http://localhost:8080/course/export");
-      const message = await res.text();
+      const message = await courseService.exportCsv();
       toast.info(`Institutional Export: ${message}`);
     } catch (err) {
       toast.error("CSV Export failure detected");
@@ -283,7 +275,7 @@ const TimetablePage: React.FC = () => {
                   <option value="">-- No Session Selected --</option>
                   {generalHistory.map((h) => (
                     <option key={h.id} value={h.id}>
-                      {h.session} • {h.semester === "1" ? "Harmattan" : "Rain"}
+                      {h.session} • {h.semester === 1 ? "Harmattan" : "Rain"}
                     </option>
                   ))}
                 </select>

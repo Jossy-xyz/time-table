@@ -26,6 +26,11 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
     code: "",
     name: "",
     departmentId: undefined,
+    duration: 4,
+    totalCompulsoryUnits: 0,
+    totalRequiredUnits: 0,
+    minElectiveUnits: 0,
+    entryRequirements: "",
   });
 
   const [programs, setPrograms] = useState<Programme[]>([]);
@@ -34,9 +39,21 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
   const [editProgData, setEditProgData] = useState<Partial<Programme>>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChangeForm = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChangeForm = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: [
+        "duration",
+        "totalCompulsoryUnits",
+        "totalRequiredUnits",
+        "minElectiveUnits",
+      ].includes(name)
+        ? parseInt(value) || 0
+        : value,
+    }));
   };
 
   const handleProgramSubmit = async (e: FormEvent) => {
@@ -45,7 +62,16 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
       await programService.create(formData);
       toast.success("✅ Academic programme added to registry");
       if (onProgramList) onProgramList("");
-      setFormData({ code: "", name: "", departmentId: undefined });
+      setFormData({
+        code: "",
+        name: "",
+        departmentId: undefined,
+        duration: 4,
+        totalCompulsoryUnits: 0,
+        totalRequiredUnits: 0,
+        minElectiveUnits: 0,
+        entryRequirements: "",
+      });
       fetchPrograms();
     } catch (error: any) {
       toast.error(error.message || "Critical failure during programme sync");
@@ -168,6 +194,74 @@ export default function ProgramList({ onProgramList }: ProgramListProps) {
                   <FiChevronDown />
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
+                Duration (Yrs)
+              </label>
+              <input
+                type="number"
+                name="duration"
+                min="1"
+                max="10"
+                className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all"
+                value={formData.duration}
+                onChange={handleInputChangeForm}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
+                Total Comp. Units
+              </label>
+              <input
+                type="number"
+                name="totalCompulsoryUnits"
+                className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all"
+                value={formData.totalCompulsoryUnits}
+                onChange={handleInputChangeForm}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
+                Total Req. Units
+              </label>
+              <input
+                type="number"
+                name="totalRequiredUnits"
+                className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all"
+                value={formData.totalRequiredUnits}
+                onChange={handleInputChangeForm}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
+                Min. Elective Units
+              </label>
+              <input
+                type="number"
+                name="minElectiveUnits"
+                className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all"
+                value={formData.minElectiveUnits}
+                onChange={handleInputChangeForm}
+              />
+            </div>
+
+            <div className="space-y-2 col-span-3">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
+                Entry Requirements
+              </label>
+              <textarea
+                name="entryRequirements"
+                rows={2}
+                className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 transition-all resize-none"
+                value={formData.entryRequirements}
+                onChange={handleInputChangeForm}
+                placeholder="Specific academic requirements..."
+              />
             </div>
           </div>
           <div className="pt-4 border-t border-brick/5">

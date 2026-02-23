@@ -23,8 +23,7 @@ public class Examtabcontroller {
                      @RequestParam(value = "username", required = false) String usernameParam,
                      @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
-        policyService.enforceScope(actorUsername, null, null);
-        examtabservice.saveExamtab(examtab);
+        examtabservice.saveExamtab(examtab, actorUsername);
         return "Exam tab settings saved";
     }
 

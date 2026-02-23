@@ -48,29 +48,9 @@ export const timetableService = {
 
   export: async (id: string, format = "pdf"): Promise<Blob> => {
     try {
-      // For blob response, we might need a specific handling in apiClient
-      // or use fetch directly since apiClient.fetch assumes JSON or text by default
-      // but let's check apiClient implementation again.
-      // It returns parsed JSON or text.
-      // We need to bypass the default parsing for Blob.
-      // Let's use the underlying fetch or valid apiClient extension if possible.
-      // Since existing apiClient doesn't support blob explicitly, we'll implement a specific fetch here.
-
-      const { useAuthStore } = await import("../state/authStore");
-      const { user } = useAuthStore.getState();
-      const headers = new Headers();
-      const actorUsername = user?.username || localStorage.getItem("username");
-      if (actorUsername) headers.set("X-Actor-Username", actorUsername);
-
-      const response = await fetch(
-        `http://localhost:8080/timetable/${id}/export?format=${format}`,
-        {
-          headers,
-        },
-      );
-
-      if (!response.ok) throw new Error("Export failed");
-      return await response.blob();
+      return await apiClient.get(`/timetable/${id}/export?format=${format}`, {
+        responseType: "blob",
+      } as any);
     } catch (error: any) {
       throw handleApiError(error);
     }

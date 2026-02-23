@@ -21,7 +21,7 @@ public class GeneralSettings {
     private Integer periodsPerDay = 3;
 
     @Column(length = 50)
-    private String semester;
+    private Integer semester;
 
     @Column(length = 50)
     private String session;
@@ -34,14 +34,14 @@ public class GeneralSettings {
     @Temporal(TemporalType.DATE)
     private Date endDate;
 
-    @Column(name = "exam_category", length = 50)
-    private String examCategory = "Regular"; // Regular, TopUp, Part-Time, Online
+    @Column(name = "exam_category")
+    private Integer examCategory;
 
-    @Column(name = "campus_type", length = 50)
-    private String campusType = "Single"; // Single or Multi
+    @Column(name = "campus_type")
+    private Integer campusType;
 
     @Column(name = "exam_level", length = 100)
-    private String examLevel = "All"; // All or specific levels (e.g. 100,200)
+    private String examLevel = "100,200,300,400,500"; // Specific levels (e.g. 100,200)
 
     @Column(name = "exam_weeks")
     private Integer examWeeks = 2;
@@ -59,8 +59,8 @@ public class GeneralSettings {
     public Integer getPeriodsPerDay() { return periodsPerDay; }
     public void setPeriodsPerDay(Integer periodsPerDay) { this.periodsPerDay = periodsPerDay; }
 
-    public String getSemester() { return semester; }
-    public void setSemester(String semester) { this.semester = semester; }
+    public Integer getSemester() { return semester; }
+    public void setSemester(Integer semester) { this.semester = semester; }
 
     public String getSession() { return session; }
     public void setSession(String session) { this.session = session; }
@@ -71,11 +71,11 @@ public class GeneralSettings {
     public Date getEndDate() { return endDate; }
     public void setEndDate(Date endDate) { this.endDate = endDate; }
 
-    public String getExamCategory() { return examCategory; }
-    public void setExamCategory(String examCategory) { this.examCategory = examCategory; }
+    public Integer getExamCategory() { return examCategory; }
+    public void setExamCategory(Integer examCategory) { this.examCategory = examCategory; }
 
-    public String getCampusType() { return campusType; }
-    public void setCampusType(String campusType) { this.campusType = campusType; }
+    public Integer getCampusType() { return campusType; }
+    public void setCampusType(Integer campusType) { this.campusType = campusType; }
 
     public String getExamLevel() { return examLevel; }
     public void setExamLevel(String examLevel) { this.examLevel = examLevel; }

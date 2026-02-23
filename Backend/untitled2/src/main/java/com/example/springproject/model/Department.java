@@ -9,38 +9,27 @@ import java.util.List;
 public class Department {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "ID")
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "centre_id", nullable = false)
+    @JoinColumn(name = "CollegeID", nullable = false)
     private Centre centre;
 
-    @Column(unique = true, length = 50)
+    @Column(name = "Code", unique = true, length = 5)
     private String code;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "Name", nullable = false, length = 60)
     private String name;
 
-    @Column(name = "created_at", updatable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
+    @Column(name = "HODID", columnDefinition = "int UNSIGNED")
+    private Integer headOfDepartmentId;
 
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Program> programs;
 
     @OneToMany(mappedBy = "department", fetch = FetchType.LAZY)
-    private List<Staff> staffMembers;
-
-    @OneToMany(mappedBy = "department", fetch = FetchType.LAZY)
-    private List<Course> courses;
-
-    @OneToMany(mappedBy = "department", fetch = FetchType.LAZY)
     private List<Student> students;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = new Date();
-    }
 
     public Integer getId() {
         return id;
@@ -74,12 +63,12 @@ public class Department {
         this.name = name;
     }
 
-    public Date getCreatedAt() {
-        return createdAt;
+    public Integer getHeadOfDepartmentId() {
+        return headOfDepartmentId;
     }
 
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
+    public void setHeadOfDepartmentId(Integer headOfDepartmentId) {
+        this.headOfDepartmentId = headOfDepartmentId;
     }
 
     public List<Program> getPrograms() {
@@ -88,22 +77,6 @@ public class Department {
 
     public void setPrograms(List<Program> programs) {
         this.programs = programs;
-    }
-
-    public List<Staff> getStaffMembers() {
-        return staffMembers;
-    }
-
-    public void setStaffMembers(List<Staff> staffMembers) {
-        this.staffMembers = staffMembers;
-    }
-
-    public List<Course> getCourses() {
-        return courses;
-    }
-
-    public void setCourses(List<Course> courses) {
-        this.courses = courses;
     }
 
     public List<Student> getStudents() {

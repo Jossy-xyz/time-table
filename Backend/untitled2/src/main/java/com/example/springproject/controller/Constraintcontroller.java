@@ -25,15 +25,7 @@ public class Constraintcontroller {
                      @RequestParam(value = "username", required = false) String usernameParam,
                      @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
-        policyService.enforceScope(actorUsername, null, null);
-        
-        // APPEND-ONLY LOGIC: Ensure we create a new record for every save
-        constrainttable.setId(null); 
-        if (constrainttable.getName() == null || constrainttable.getName().isEmpty()) {
-            constrainttable.setName("Snapshot " + new java.util.Date());
-        }
-        
-        constraintservice.saveConstrainttable(constrainttable);
+        constraintservice.saveConstrainttable(constrainttable, actorUsername);
         return "Constraints saved successfully";
     }
  

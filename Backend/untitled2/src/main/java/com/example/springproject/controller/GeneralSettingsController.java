@@ -1,8 +1,7 @@
 package com.example.springproject.controller;
 
 import com.example.springproject.model.GeneralSettings;
-import com.example.springproject.repository.GeneralSettingsRepository;
-import com.example.springproject.service.PolicyEnforcementService;
+import com.example.springproject.service.GeneralSettingsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,21 +11,16 @@ import org.springframework.web.bind.annotation.*;
 public class GeneralSettingsController {
 
     @Autowired
-    private GeneralSettingsRepository repository;
-
-    @Autowired
-    private PolicyEnforcementService policyService;
+    private GeneralSettingsService settingsService;
 
     @GetMapping
     public GeneralSettings getSettings() {
-        return repository.findTopByOrderByIdDesc();
+        return settingsService.getLatestSettings();
     }
 
     @GetMapping("/history")
     public java.util.List<GeneralSettings> getHistory() {
-        return repository.findAll().stream()
-                .sorted((a, b) -> b.getId().compareTo(a.getId())) // Newest ID first
-                .collect(java.util.stream.Collectors.toList());
+        return settingsService.getHistory();
     }
 
     @PostMapping
@@ -36,13 +30,7 @@ public class GeneralSettingsController {
             @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         
         String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
-        
-        // Only admins can modify general settings
-        policyService.enforceAlgorithmAccess(actorUsername);
-        
-        // APPEND-ONLY for history tracking
-        settings.setId(null);
-        return repository.save(settings);
+        return settingsService.saveSettings(settings, actorUsername);
     }
 }
 

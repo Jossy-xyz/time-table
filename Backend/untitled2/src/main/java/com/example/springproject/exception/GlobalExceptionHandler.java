@@ -111,7 +111,7 @@ public class GlobalExceptionHandler {
         
         ErrorResponse error = new ErrorResponse(
             "INTERNAL_ERROR",
-            "An unexpected error occurred. Please contact support if the problem persists.",
+            "DIV-DEBUG: " + ex.getMessage(),
             request.getDescription(false).replace("uri=", "")
         );
         
@@ -130,7 +130,7 @@ public class GlobalExceptionHandler {
         
         ErrorResponse error = new ErrorResponse(
             "INTERNAL_ERROR",
-            "An unexpected error occurred. Please contact support if the problem persists.",
+            "DIV-DEBUG: " + ex.getMessage(),
             request.getDescription(false).replace("uri=", "")
         );
         

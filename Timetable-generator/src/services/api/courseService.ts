@@ -24,29 +24,34 @@ export const courseService = {
       title: courseData.title,
       unit: courseData.unit,
       semester: courseData.semester,
-      examType: courseData.examType,
-      department: { id: courseData.departmentId },
+      enCount: courseData.enrollmentCount,
     };
     const response = await apiClient.post("/course/done", payload);
     return response as Course;
   },
 
-  update: async (id: number, courseData: Partial<Course>): Promise<Course> => {
+  update: async (
+    id: string | number,
+    courseData: Partial<Course>,
+  ): Promise<Course> => {
     const payload = {
       code: courseData.code,
       title: courseData.title,
       unit: courseData.unit,
       semester: courseData.semester,
-      examType: courseData.examType,
-      department: courseData.departmentId
-        ? { id: courseData.departmentId }
-        : undefined,
+      enrollmentCount: courseData.enrollmentCount,
     };
     const response = await apiClient.put(`/course/update/${id}`, payload);
     return response as Course;
   },
 
-  delete: async (id: number): Promise<void> => {
+  delete: async (id: string | number): Promise<void> => {
     await apiClient.delete(`/course/delete/${id}`);
+  },
+
+  exportCsv: async (): Promise<string> => {
+    return await apiClient.get("/course/export", {
+      responseType: "text",
+    } as any);
   },
 };

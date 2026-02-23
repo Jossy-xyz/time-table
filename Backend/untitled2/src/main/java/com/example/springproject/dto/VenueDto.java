@@ -11,7 +11,6 @@ public class VenueDto {
     private Integer capacity;
     private Integer type;
     private Integer preference;
-    private String location;
     private Integer actualCapacity;
-    private Boolean inUse;
+    private Integer inUse;
 }

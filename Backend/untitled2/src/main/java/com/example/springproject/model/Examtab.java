@@ -11,7 +11,7 @@ public class Examtab {
     private Long id;
 
     @Column(name = "schedule_policy")
-    private String schedulePolicy;
+    private Integer schedulePolicy;
 
     @Column(name = "max_examl", columnDefinition = "INT DEFAULT 0")
     private Integer maxExaml;
@@ -36,11 +36,11 @@ public class Examtab {
         this.id = id;
     }
 
-    public String getSchedulePolicy() {
+    public Integer getSchedulePolicy() {
         return schedulePolicy;
     }
 
-    public void setSchedulePolicy(String schedulePolicy) {
+    public void setSchedulePolicy(Integer schedulePolicy) {
         this.schedulePolicy = schedulePolicy;
     }
 

@@ -20,14 +20,18 @@ public class Programserviceimp implements Programservice {
     @Override
     @Transactional
     public Program saveProgram(Program program, String actorUsername) {
-        // DIV: Scope Verification
-        if (program.getDepartment() != null) {
-            policyService.enforceScope(
-                actorUsername, 
-                program.getDepartment().getId(), 
-                program.getDepartment().getCentre() != null ? program.getDepartment().getCentre().getId() : null
-            );
+        // DIV-01: Integrity Enforcement - Verify FK inputs
+        if (program.getDepartment() == null || program.getDepartment().getId() == null) {
+            throw new IllegalArgumentException("DIV-VIOLATION: Program MUST be assigned to a Department");
         }
+
+        // DIV-02: PEL Integration
+        policyService.enforceScope(
+            actorUsername, 
+            program.getDepartment().getId(), 
+            program.getDepartment().getCentre() != null ? program.getDepartment().getCentre().getId() : null
+        );
+
         return programrepository.save(program);
     }
 

@@ -21,16 +21,22 @@ public class Staffserviceimp implements Staffservice {
     @Override
     @Transactional
     public Staff saveStaff(Staff staff, String actorUsername) {
-        // DIV: Scope Verification
+        // DIV-01: Integrity Enforcement - Verify FK inputs
+        if (staff.getCollege() == null || staff.getCollege().getId() == null) {
+            throw new IllegalArgumentException("DIV-VIOLATION: Staff MUST be assigned to a College (cenID)");
+        }
+
+        // DIV-02: Mandatory Pre-Mutation Check - Natural Key uniqueness
+        if (staffrepository.existsByStaffId(staff.getStaffId())) {
+            throw new RuntimeException("INTEGRITY-ERROR: Staff with ID " + staff.getStaffId() + " already exists.");
+        }
+
+        // DIV-03: PEL Integration - Hierarchy defines scope
         policyService.enforceScope(
             actorUsername, 
-            staff.getDepartment().getId(),
-            staff.getDepartment().getCentre().getId()
+            null, // No direct department link in staffmc
+            staff.getCollege().getId()
         );
-
-        if (staffrepository.existsByStaffId(staff.getStaffId())) {
-            throw new RuntimeException("Staff with ID " + staff.getStaffId() + " already exists.");
-        }
 
         return staffrepository.save(staff);
     }
@@ -42,42 +48,40 @@ public class Staffserviceimp implements Staffservice {
 
     @Override
     public List<Staff> getStaffByDepartment(Department department) {
-        return staffrepository.findByDepartment(department);
+        // Legacy bridge: Finding staff via their college (imperfect but maintains compatibility)
+        return staffrepository.findByCollegeId(department.getCentre().getId());
     }
     
     @Override
     public List<Staff> getStaffByCollege(Integer collegeId) {
-        return staffrepository.findByDepartmentCentreId(collegeId);
+        return staffrepository.findByCollegeId(collegeId);
     }
 
     @Override
     @Transactional
     public Staff updateStaff(Integer id, Staff updated, String actorUsername) {
+        // DIV: Fetch Managed Instance
         Staff existing = staffrepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Staff not found"));
+            .orElseThrow(() -> new RuntimeException("INTEGRITY-ERROR: Staff serial " + id + " not found"));
 
-        // DIV: Scope Verification
+        // DIV: PEL Integration
         policyService.enforceScope(
             actorUsername, 
-            existing.getDepartment().getId(),
-            existing.getDepartment().getCentre().getId()
+            null,
+            existing.getCollege().getId()
         );
 
-        existing.setSurname(updated.getSurname());
-        existing.setFirstname(updated.getFirstname());
-        existing.setMiddlename(updated.getMiddlename());
-        existing.setTitle(updated.getTitle());
-        existing.setStaffId(updated.getStaffId());
-        existing.setStatusId(updated.getStatusId());
-        existing.setType(updated.getType());
-        existing.setInUse(updated.getInUse());
-        existing.setDutyCount(updated.getDutyCount());
-        existing.setSpecialization(updated.getSpecialization());
-        existing.setResearchArea(updated.getResearchArea());
-        existing.setDiscipline(updated.getDiscipline());
-        existing.setShortName(updated.getShortName());
-        existing.setSerialNo(updated.getSerialNo());
-        existing.setDepartment(updated.getDepartment());
+        // DIV: Strict Sanitization & Update
+        if (updated.getSurname() != null) existing.setSurname(updated.getSurname());
+        if (updated.getFirstname() != null) existing.setFirstname(updated.getFirstname());
+        if (updated.getMiddlename() != null) existing.setMiddlename(updated.getMiddlename());
+        if (updated.getTitle() != null) existing.setTitle(updated.getTitle());
+        if (updated.getStaffId() != null) existing.setStaffId(updated.getStaffId());
+        if (updated.getStatusId() != null) existing.setStatusId(updated.getStatusId());
+        if (updated.getInUse() != null) existing.setInUse(updated.getInUse());
+        if (updated.getDutyCount() != null) existing.setDutyCount(updated.getDutyCount());
+        if (updated.getShortName() != null) existing.setShortName(updated.getShortName());
+        if (updated.getCollege() != null) existing.setCollege(updated.getCollege());
         
         return staffrepository.save(existing);
     }
@@ -85,14 +89,15 @@ public class Staffserviceimp implements Staffservice {
     @Override
     @Transactional
     public void deleteStaff(Integer id, String actorUsername) {
+        // DIV: Fetch Managed Instance
         Staff existing = staffrepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Staff not found"));
+            .orElseThrow(() -> new RuntimeException("INTEGRITY-ERROR: Staff serial " + id + " not found"));
 
-        // DIV: Scope Verification
+        // DIV: PEL Integration
         policyService.enforceScope(
             actorUsername, 
-            existing.getDepartment().getId(),
-            existing.getDepartment().getCentre().getId()
+            null,
+            existing.getCollege().getId()
         );
 
         staffrepository.deleteById(id);

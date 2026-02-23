@@ -7,11 +7,9 @@ import { constraintService } from "../services/api/constraintService";
 import { periodExclusionService } from "../services/api/periodExclusionService";
 import {
   FiX,
-  FiInfo,
   FiDownload,
   FiDatabase,
   FiSettings,
-  FiLock,
   FiCheckCircle,
   FiChevronRight,
   FiActivity,
@@ -20,10 +18,19 @@ import {
   FiZap,
   FiRotateCcw,
 } from "react-icons/fi";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import InstitutionalConstraintsSection from "../components/molecules/InstitutionalConstraintsSection";
 import { useInstitutionalStore } from "../services/state/institutionalStore";
+import { courseService } from "../services/api/courseService";
+import { venueService } from "../services/api/venueService";
+import { staffService } from "../services/api/staffService";
+import { studentService } from "../services/api/studentService";
+import { examSettingsService } from "../services/api/examSettingsService";
+import {
+  outputSettingsService,
+  OutputSettings,
+} from "../services/api/outputSettingsService";
 
 interface OptimizationParameter {
   checked: boolean;
@@ -72,14 +79,8 @@ const SettingsPage: React.FC = () => {
   const isAdmin = user?.roleCode === "AD" || user?.roleId === 1;
 
   // Global Context Store & Persistent Orchestration
-  const {
-    topology,
-    activeGS,
-    setActiveGs,
-    setConstraintId,
-    selectedConstraintId,
-    setExclusionId,
-  } = useInstitutionalStore();
+  const { topology, activeGS, setActiveGs, setConstraintId } =
+    useInstitutionalStore();
 
   // Filter tabs based on role - only Admin has access to all except health
   const filteredTabs = TABS.filter((tab) => isAdmin || tab.id === "health");
@@ -100,13 +101,13 @@ const SettingsPage: React.FC = () => {
       : {
           description: "Configuration_1",
           session: "",
-          semester: "1",
+          semester: 1,
           daysPerWeek: 5,
           periodsPerDay: 5,
           startDate: "",
           endDate: "",
-          examCategory: "0",
-          campusType: "0",
+          examCategory: 0,
+          campusType: 0,
           examLevel: "100,200,300,400,500",
           examWeeks: 2,
         },
@@ -171,32 +172,34 @@ const SettingsPage: React.FC = () => {
   const [minExamL, setMinExamL] = useState("");
   const [examLevel, setExamLevel] = useState("");
 
-  // Output State
-  // Output States (Simplified to remove unused markers)
-  const [mixExams, setMixExams] = useState(false);
-  const [moreSpace, setMoreSpace] = useState(false);
-  const [halfSpace, setHalfSpace] = useState(false);
-  const [skipWeek, setSkipWeek] = useState(false);
-  const [staffRandom, setStaffRandom] = useState(false);
-
-  // General Optimization State
-  // Optimization Meta (Simplified)
-
   // Functional Dirty Checks for other sections
   const isExamDirty =
     examPolicy !== "" || maxExamL !== "" || minExamL !== "" || examLevel !== "";
 
-  const [initialOutputSettings, setInitialOutputSettings] = useState({
-    mixExams: false,
-    moreSpace: false,
-    halfSpace: false,
-    skipWeek: false,
-  });
+  const [outputSettings, setOutputSettings] = useState<Partial<OutputSettings>>(
+    {
+      invigilator_ratio: 30,
+      invigilator_special_ratio: 15,
+      venue_alg: 1,
+      venue_alg_order: 1,
+      mix_exams: 1,
+      more_space: 0,
+      le_fullyinV: 1,
+      use_half_venue: 0,
+      select_staff_random: 1,
+      use_staff_ids: 0,
+      update_staff_duty: 1,
+      skip_week: 0,
+      gen_sitting_arr: 0,
+      save_file: 1,
+      save_to_db: 1,
+    },
+  );
+  const [initialOutputSnapshot, setInitialOutputSnapshot] =
+    useState<Partial<OutputSettings> | null>(null);
+
   const isOutputDirty =
-    mixExams !== initialOutputSettings.mixExams ||
-    moreSpace !== initialOutputSettings.moreSpace ||
-    halfSpace !== initialOutputSettings.halfSpace ||
-    skipWeek !== initialOutputSettings.skipWeek;
+    JSON.stringify(outputSettings) !== JSON.stringify(initialOutputSnapshot);
 
   const isOptimizationDirty = Object.values(optimize).some((v) => v.checked);
 
@@ -221,30 +224,16 @@ const SettingsPage: React.FC = () => {
             venuesData,
             staffData,
             mappingData,
+            outputData,
           ] = await Promise.all([
             generalSettingsService.get(),
             constraintService.getLatest(),
             periodExclusionService.getActiveExclusions(),
-            fetch(
-              `http://localhost:8080/course/get?username=${user?.username || "admin1"}`,
-            ).then((res) => res.json()),
-            fetch(
-              `http://localhost:8080/venue/get?username=${user?.username || "admin1"}`,
-              {
-                headers: {
-                  "X-Actor-Username": user?.username || "admin1",
-                },
-              },
-            ).then((res) => res.json()),
-            fetch(
-              `http://localhost:8080/staff/get?username=${user?.username || "admin1"}`,
-              {
-                headers: {
-                  "X-Actor-Username": user?.username || "admin1",
-                },
-              },
-            ).then((res) => res.json()),
+            courseService.getAll(),
+            venueService.getAll(),
+            staffService.getAll(),
             periodExclusionService.getMapping(),
+            outputSettingsService.get(),
           ]);
 
           if (gs) {
@@ -258,6 +247,10 @@ const SettingsPage: React.FC = () => {
           if (Array.isArray(coursesData)) setCourses(coursesData);
           if (Array.isArray(venuesData)) setVenues(venuesData);
           if (Array.isArray(staffData)) setStaff(staffData);
+          if (outputData) {
+            setOutputSettings(outputData);
+            setInitialOutputSnapshot(outputData);
+          }
           if (mappingData) {
             setPeriodMapping(mappingData);
             const systemLocked = mappingData.periods
@@ -301,6 +294,17 @@ const SettingsPage: React.FC = () => {
 
   const handleGeneralSettingsSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    // RICHO TAKE NOTE
+    if (
+      generalSettings.startDate &&
+      generalSettings.endDate &&
+      new Date(generalSettings.endDate) < new Date(generalSettings.startDate)
+    ) {
+      toast.error("End Date cannot be earlier than Start Date");
+      return;
+    }
+
     try {
       await generalSettingsService.update(generalSettings as GeneralSettings);
       setActiveGs(generalSettings); // Sync to global store on manual save
@@ -357,45 +361,25 @@ const SettingsPage: React.FC = () => {
   const fetchHealth = async () => {
     setCheckingHealth(true);
     const endpoints = [
-      {
-        id: "staff",
-        url: "http://localhost:8080/staff/get",
-        name: "Personnel Ledger",
-      },
-      {
-        id: "student",
-        url: "http://localhost:8080/student/get",
-        name: "Student Registry",
-      },
-      {
-        id: "course",
-        url: "http://localhost:8080/course/get",
-        name: "Curriculum Assets",
-      },
+      { id: "staff", fn: staffService.getAll, name: "Personnel Ledger" },
+      { id: "student", fn: studentService.getAll, name: "Student Registry" },
+      { id: "course", fn: courseService.getAll, name: "Curriculum Assets" },
       {
         id: "venue",
-        url: "http://localhost:8080/venue/get",
+        fn: venueService.getAll,
         name: "Infrastructure Portfolio",
       },
     ];
 
     const results: Record<string, any> = {};
-    const username = localStorage.getItem("username") || "admin";
 
     for (const ep of endpoints) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-
+      // Manual timeout handling with services can be tricky, relying on service timeout config (if any) or wrapping
       try {
-        const url =
-          ep.id === "venue" ? ep.url : `${ep.url}?username=${username}`;
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        const data = await res.json();
+        const data = await ep.fn();
         results[ep.id] = {
-          status: res.ok ? "Connected" : "Offline",
-          ok: res.ok,
+          status: "Connected",
+          ok: true,
           name: ep.name,
           count: Array.isArray(data) ? data.length : 0,
         };
@@ -444,18 +428,13 @@ const SettingsPage: React.FC = () => {
   const saveExamSettings = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:8080/examtab/post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          schedule_policy: examPolicy,
-          max_examl: maxExamL,
-          min_examl: minExamL,
-          exam_level_high_limit: examLevel,
-        }),
+      await examSettingsService.create({
+        schedule_policy: parseInt(examPolicy),
+        max_examl: parseInt(maxExamL),
+        min_examl: parseInt(minExamL),
+        exam_level_high_limit: examLevel,
       });
-      if (res.ok) toast.success("Academic examination boundaries established");
-      else toast.error("Boundary synchronization failed");
+      toast.success("Academic examination boundaries established");
     } catch (error) {
       toast.error("Critical failure during exam setting save");
     }
@@ -584,12 +563,12 @@ const SettingsPage: React.FC = () => {
                         onChange={(e) =>
                           setGeneralSettings((prev) => ({
                             ...prev,
-                            semester: e.target.value,
+                            semester: parseInt(e.target.value),
                           }))
                         }
                       >
-                        <option value="1">Harmattan (1st Semester)</option>
-                        <option value="2">Rain (2nd Semester)</option>
+                        <option value={1}>Harmattan (1st Semester)</option>
+                        <option value={2}>Rain (2nd Semester)</option>
                       </select>
                     </div>
                     <div className="input-group">
@@ -671,14 +650,14 @@ const SettingsPage: React.FC = () => {
                         onChange={(e) =>
                           setGeneralSettings((prev) => ({
                             ...prev,
-                            examCategory: e.target.value,
+                            examCategory: parseInt(e.target.value),
                           }))
                         }
                       >
-                        <option value="0">Regular</option>
-                        <option value="1">TopUp</option>
-                        <option value="2">Part-Time</option>
-                        <option value="3">Online</option>
+                        <option value={0}>Regular</option>
+                        <option value={1}>TopUp</option>
+                        <option value={2}>Part-Time</option>
+                        <option value={3}>Online</option>
                       </select>
                     </div>
 
@@ -692,12 +671,12 @@ const SettingsPage: React.FC = () => {
                         onChange={(e) =>
                           setGeneralSettings((prev) => ({
                             ...prev,
-                            campusType: e.target.value,
+                            campusType: parseInt(e.target.value),
                           }))
                         }
                       >
-                        <option value="0">Single Campus</option>
-                        <option value="1">Multi Campus</option>
+                        <option value={0}>Single Campus</option>
+                        <option value={1}>Multi Campus</option>
                       </select>
                     </div>
 
@@ -715,14 +694,21 @@ const SettingsPage: React.FC = () => {
                               <input
                                 type="checkbox"
                                 className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-brick/20 bg-white checked:bg-brick checked:border-brick transition-all shadow-sm"
-                                checked={generalSettings.examLevel
-                                  ?.split(",")
-                                  .includes(level)}
+                                checked={
+                                  generalSettings.examLevel === "All" ||
+                                  (generalSettings.examLevel || "")
+                                    .split(",")
+                                    .includes(level)
+                                }
                                 onChange={(e) => {
                                   let currentLevels =
-                                    generalSettings.examLevel
-                                      ?.split(",")
-                                      .filter(Boolean) || [];
+                                    generalSettings.examLevel === "All"
+                                      ? ["100", "200", "300", "400", "500"]
+                                      : generalSettings.examLevel
+                                          ?.split(",")
+                                          .filter(
+                                            (l) => Boolean(l) && l !== "All",
+                                          ) || [];
 
                                   if (e.target.checked) {
                                     if (!currentLevels.includes(level))
@@ -746,7 +732,7 @@ const SettingsPage: React.FC = () => {
                               <FiCheckCircle className="absolute inset-0 m-auto h-3 w-3 text-white scale-0 peer-checked:scale-100 transition-transform pointer-events-none" />
                             </div>
                             <span className="text-xs font-bold text-institutional-primary group-hover:text-brick transition-all">
-                              L{level}
+                              {level}L
                             </span>
                           </label>
                         ))}
@@ -757,14 +743,17 @@ const SettingsPage: React.FC = () => {
                             setGeneralSettings((prev) => ({
                               ...prev,
                               examLevel:
-                                prev.examLevel === "100,200,300,400,500"
+                                prev.examLevel === "100,200,300,400,500" ||
+                                prev.examLevel === "All"
                                   ? ""
                                   : "100,200,300,400,500",
                             }))
                           }
                           className="text-[10px] font-black uppercase tracking-widest text-brick hover:underline"
                         >
-                          {generalSettings.examLevel === "100,200,300,400,500"
+                          {generalSettings.examLevel ===
+                            "100,200,300,400,500" ||
+                          generalSettings.examLevel === "All"
                             ? "Clear Selection"
                             : "Select All"}
                         </button>
@@ -878,50 +867,169 @@ const SettingsPage: React.FC = () => {
                       Output Projections
                     </h2>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {[
-                      {
-                        label: "Deterministic Venue Mixing",
-                        checked: mixExams,
-                        setter: setMixExams,
-                      },
-                      {
-                        label: "Global Space Optimization",
-                        checked: moreSpace,
-                        setter: setMoreSpace,
-                      },
-                      {
-                        label: "Skip Week Protocol",
-                        checked: skipWeek,
-                        setter: setSkipWeek,
-                      },
-                    ].map((opt, i) => (
-                      <label
-                        key={i}
-                        className="flex items-center justify-between p-3 bg-page/50 rounded border border-brick/5 cursor-pointer hover:border-brick/10"
-                      >
-                        <span className="text-xs font-bold text-institutional-primary">
-                          {opt.label}
-                        </span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Numeric Inputs */}
+                    <div className="space-y-4">
+                      <div className="input-group">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                          Student/Invigilator Ratio
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={opt.checked}
-                          onChange={(e) => opt.setter(e.target.checked)}
-                          className="w-4 h-4 accent-brick"
+                          type="number"
+                          className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                          value={outputSettings.invigilator_ratio}
+                          onChange={(e) =>
+                            setOutputSettings((prev) => ({
+                              ...prev,
+                              invigilator_ratio: parseInt(e.target.value) || 0,
+                            }))
+                          }
                         />
-                      </label>
-                    ))}
+                      </div>
+                      <div className="input-group">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                          Invigilator in Special Venue
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                          value={outputSettings.invigilator_special_ratio}
+                          onChange={(e) =>
+                            setOutputSettings((prev) => ({
+                              ...prev,
+                              invigilator_special_ratio:
+                                parseInt(e.target.value) || 0,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                          Venue Selection Policy
+                        </label>
+                        <select
+                          className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                          value={outputSettings.venue_alg}
+                          onChange={(e) =>
+                            setOutputSettings((prev) => ({
+                              ...prev,
+                              venue_alg: parseInt(e.target.value),
+                            }))
+                          }
+                        >
+                          <option value={1}>Default Policy</option>
+                          <option value={2}>Sequential Fill</option>
+                          <option value={3}>Balanced Distribution</option>
+                        </select>
+                      </div>
+                      <div className="input-group">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+                          Venue Selection Order
+                        </label>
+                        <select
+                          className="w-full bg-page border border-brick/10 px-4 py-3 rounded font-bold text-sm"
+                          value={outputSettings.venue_alg_order}
+                          onChange={(e) =>
+                            setOutputSettings((prev) => ({
+                              ...prev,
+                              venue_alg_order: parseInt(e.target.value),
+                            }))
+                          }
+                        >
+                          <option value={1}>Ascending Capacity</option>
+                          <option value={2}>Descending Capacity</option>
+                          <option value={3}>Alphabetical</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Toggles */}
+                    <div className="space-y-3">
+                      {[
+                        {
+                          key: "mix_exams",
+                          label: "Mix Exams in Venue",
+                        },
+                        {
+                          key: "more_space",
+                          label: "Use More Space for Large Exams",
+                        },
+                        {
+                          key: "le_fullyinV",
+                          label: "Large Exams Fully in Venue",
+                        },
+                        {
+                          key: "use_half_venue",
+                          label: "Use Half Venue Space",
+                        },
+                        {
+                          key: "select_staff_random",
+                          label: "Select Staff Randomly",
+                        },
+                        {
+                          key: "use_staff_ids",
+                          label: "Use Staff IDs",
+                        },
+                        {
+                          key: "update_staff_duty",
+                          label: "Update Staff Duty Count",
+                        },
+                        {
+                          key: "skip_week",
+                          label: "Skip Week in Timetable",
+                        },
+                        {
+                          key: "gen_sitting_arr",
+                          label: "Generate Sitting Arrangements",
+                        },
+                        {
+                          key: "save_file",
+                          label: "Save Timetable to File",
+                        },
+                        {
+                          key: "save_to_db",
+                          label: "Save Timetable to Database",
+                        },
+                      ].map((opt) => (
+                        <label
+                          key={opt.key}
+                          className="flex items-center justify-between p-3 bg-page/50 rounded border border-brick/5 cursor-pointer hover:border-brick/10"
+                        >
+                          <span className="text-xs font-bold text-institutional-primary">
+                            {opt.label}
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-brick"
+                            checked={
+                              (outputSettings as any)[opt.key] === 1 ||
+                              (outputSettings as any)[opt.key] === true
+                            }
+                            onChange={(e) =>
+                              setOutputSettings((prev) => ({
+                                ...prev,
+                                [opt.key]: e.target.checked ? 1 : 0,
+                              }))
+                            }
+                          />
+                        </label>
+                      ))}
+                    </div>
                   </div>
+
                   <div className="flex items-center justify-between mt-6 pt-4 border-t border-brick/5">
                     <button
-                      onClick={() => {
-                        setInitialOutputSettings({
-                          mixExams,
-                          moreSpace,
-                          halfSpace,
-                          skipWeek,
-                        });
-                        toast.success("Output projections authorized");
+                      onClick={async () => {
+                        try {
+                          await outputSettingsService.save(
+                            outputSettings as OutputSettings,
+                          );
+                          setInitialOutputSnapshot(outputSettings);
+                          toast.success("Output projections authorized");
+                        } catch (e) {
+                          toast.error("Failed to commit output policy");
+                        }
                       }}
                       disabled={!isOutputDirty}
                       className={`px-10 py-3 text-white text-[10px] font-black uppercase tracking-widest rounded transition-all ${
@@ -1197,7 +1305,7 @@ const SettingsPage: React.FC = () => {
                         </div>
                         <p className="text-[9px] text-institutional-primary font-bold uppercase leading-tight">
                           Session {gs.session} •{" "}
-                          {gs.semester === "1" ? "Harmattan" : "Rain"}
+                          {gs.semester === 1 ? "Harmattan" : "Rain"}
                         </p>
                         <p className="text-[8px] text-institutional-muted font-bold uppercase">
                           {gs.daysPerWeek} Days • {gs.periodsPerDay} Periods

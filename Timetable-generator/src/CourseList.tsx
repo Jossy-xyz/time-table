@@ -26,11 +26,11 @@ export default function CourseList({ onCourseList }: CourseListProps) {
     title: "",
     unit: 0,
     semester: 1,
-    examType: 1,
+    enrollmentCount: 0,
   });
 
   const [courses, setCourses] = useState<Course[]>([]);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | number | null>(null);
   const [editCourseData, setEditCourseData] = useState<Partial<Course>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +41,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: ["unit", "semester", "examType"].includes(name)
+      [name]: ["unit", "semester", "enrollmentCount"].includes(name)
         ? parseInt(value)
         : value,
     }));
@@ -105,7 +105,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
         title: "",
         unit: 0,
         semester: 1,
-        examType: 1,
+        enrollmentCount: 0,
       });
       fetchCourses();
     } catch (error: any) {
@@ -118,7 +118,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
     setEditCourseData({ ...course });
   };
 
-  const handleSave = async (id: number) => {
+  const handleSave = async (id: string | number) => {
     try {
       await courseService.update(id, editCourseData);
       toast.success("Curriculum record modified in ledger");
@@ -129,7 +129,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string | number) => {
     if (
       !window.confirm(
         "Purge curriculum record from academic ledger permanently?",
@@ -168,7 +168,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
               { label: "Official Title", name: "title" },
               { label: "Unit Weight", name: "unit" },
               { label: "Semester Cycle", name: "semester" },
-              { label: "Exam Category ID", name: "examType" },
+              { label: "Enrollment Count", name: "enrollmentCount" },
             ].map((field) => (
               <div key={field.name} className="space-y-2">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted">
@@ -226,6 +226,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
               <th>Course Title</th>
               <th className="text-center">Units</th>
               <th className="text-center">Cycle</th>
+              <th className="text-center">Enrolled</th>
               <th className="text-right">Actions</th>
             </tr>
           </thead>
@@ -239,7 +240,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                   <>
                     <td className="px-4 py-2">
                       <input
-                        value={editCourseData.code}
+                        value={editCourseData.code || ""}
                         onChange={(e) =>
                           setEditCourseData((p) => ({
                             ...p,
@@ -251,7 +252,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                     </td>
                     <td className="px-4 py-2">
                       <input
-                        value={editCourseData.title}
+                        value={editCourseData.title || ""}
                         onChange={(e) =>
                           setEditCourseData((p) => ({
                             ...p,
@@ -263,7 +264,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                     </td>
                     <td className="px-4 py-2 text-center">
                       <input
-                        value={editCourseData.unit}
+                        value={editCourseData.unit || 0}
                         onChange={(e) =>
                           setEditCourseData((p) => ({
                             ...p,
@@ -275,7 +276,7 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                     </td>
                     <td className="px-4 py-2 text-center">
                       <input
-                        value={editCourseData.semester}
+                        value={editCourseData.semester || 1}
                         onChange={(e) =>
                           setEditCourseData((p) => ({
                             ...p,
@@ -283,6 +284,18 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                           }))
                         }
                         className="w-12 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
+                      />
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      <input
+                        value={editCourseData.enrollmentCount || 0}
+                        onChange={(e) =>
+                          setEditCourseData((p) => ({
+                            ...p,
+                            enrollmentCount: parseInt(e.target.value),
+                          }))
+                        }
+                        className="w-16 mx-auto bg-page border border-brick/20 px-2 py-1 rounded text-xs text-center"
                       />
                     </td>
                     <td className="px-4 py-2 text-right space-x-2">
@@ -316,6 +329,9 @@ export default function CourseList({ onCourseList }: CourseListProps) {
                       <span className="status-pill status-pill-info">
                         S{course.semester}
                       </span>
+                    </td>
+                    <td className="text-center font-mono text-[10px] opacity-60">
+                      {course.enrollmentCount}
                     </td>
                     <td className="text-right space-x-1">
                       <button

@@ -57,30 +57,27 @@ export interface Staff {
 }
 
 export interface Student {
-  id: number;
-  departmentId: number;
-  programId: number;
+  id: string; // Matched with DTO (matricNo)
   matricNo: string;
-  surname: string;
-  firstname: string;
-  middlename: string;
-  gender: string;
-  startSession: string;
+  fullName: string;
+  departmentId: number;
+  collegeId: number;
+  programme: string;
   level: number;
+  // Legacy fields for form compatibility if needed
+  surname?: string;
+  firstname?: string;
+  middlename?: string;
+  startSession?: string;
 }
 
 export interface Course {
-  id: number;
-  departmentId: number;
+  id: string | number;
   code: string;
   title: string;
   unit: number;
   semester: number;
-  examType: number;
   enrollmentCount: number;
-  lectureHours: number;
-  tutorialHours: number;
-  practicalHours: number;
 }
 
 export interface Venue {
@@ -91,7 +88,7 @@ export interface Venue {
   capacity: number;
   type: number;
   preference: number;
-  location: string;
+  actualCapacity: number;
   inUse: boolean;
 }
 
@@ -161,12 +158,12 @@ export interface GeneralSettings {
   description?: string;
   daysPerWeek: number;
   periodsPerDay: number;
-  semester: string;
+  semester: number;
   session: string;
   startDate: string;
   endDate: string;
-  examCategory: string;
-  campusType: string;
+  examCategory: number;
+  campusType: number;
   examLevel: string;
   examWeeks: number;
 }

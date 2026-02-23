@@ -23,8 +23,7 @@ public class OptimizationSettingsController {
                       @RequestParam(value = "username", required = false) String usernameParam,
                       @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
-        policyService.enforceScope(actorUsername, null, null);
-        settingsService.saveSettings(settings);
+        settingsService.saveSettings(settings, actorUsername);
         return "Optimization settings saved";
     }
 

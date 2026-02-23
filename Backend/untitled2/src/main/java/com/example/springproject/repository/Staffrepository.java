@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface Staffrepository extends JpaRepository<Staff, Integer> {
-    List<Staff> findByDepartment(Department department);
-    List<Staff> findByDepartmentCentreId(Integer centreId);
+    List<Staff> findByCollegeId(Integer collegeId);
     boolean existsByStaffId(String staffId);
 }

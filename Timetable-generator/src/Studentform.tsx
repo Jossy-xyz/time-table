@@ -3,8 +3,9 @@ import { FiUserPlus, FiChevronDown } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { departmentService } from "./services/api/departmentService";
 import { programService } from "./services/api/programService";
+import { collegeService } from "./services/api/collegeService";
 import { studentService } from "./services/api/studentService";
-import { Student, Department, Programme } from "./types/institutional";
+import { Student, Department, Programme, Centre } from "./types/institutional";
 
 interface StudentFormProps {
   onStudentform?: (val: string) => void;
@@ -17,29 +18,29 @@ interface StudentFormProps {
 export default function StudentForm({ onStudentform }: StudentFormProps) {
   const [formData, setFormData] = useState<Partial<Student>>({
     matricNo: "",
-    surname: "",
-    firstname: "",
-    middlename: "",
+    fullName: "",
     level: 100,
-    gender: "",
     departmentId: undefined,
-    programId: undefined,
-    startSession: "2024/2025",
+    collegeId: undefined,
+    programme: "",
   });
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [programs, setPrograms] = useState<Programme[]>([]);
+  const [colleges, setColleges] = useState<Centre[]>([]);
   const [filteredPrograms, setFilteredPrograms] = useState<Programme[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [depts, progs] = await Promise.all([
+        const [depts, progs, clgs] = await Promise.all([
           departmentService.getAll(),
           programService.getAll(),
+          collegeService.getAll(),
         ]);
         setDepartments(depts);
         setPrograms(progs);
+        setColleges(clgs);
         setFilteredPrograms(progs);
       } catch (error) {
         toast.error("Failed to load institutional metadata");
@@ -52,7 +53,7 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
     setFormData((prev) => ({
       ...prev,
       departmentId: id,
-      programId: undefined,
+      programme: "",
     }));
     if (id) {
       setFilteredPrograms(programs.filter((p) => p.departmentId === id));
@@ -65,10 +66,10 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
     e.preventDefault();
     if (
       !formData.matricNo ||
-      !formData.surname ||
-      !formData.firstname ||
+      !formData.fullName ||
       !formData.departmentId ||
-      !formData.programId
+      !formData.collegeId ||
+      !formData.programme
     ) {
       return toast.warn("Verify all mandatory academic fields");
     }
@@ -80,14 +81,11 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
 
       setFormData({
         matricNo: "",
-        surname: "",
-        firstname: "",
-        middlename: "",
+        fullName: "",
         level: 100,
-        gender: "",
         departmentId: undefined,
-        programId: undefined,
-        startSession: "2024/2025",
+        collegeId: undefined,
+        programme: "",
       });
     } catch (error: any) {
       toast.error(error.message || "Critical failure during enrollment sync");
@@ -116,55 +114,54 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
               onChange={(e) =>
                 setFormData({ ...formData, matricNo: e.target.value })
               }
-              placeholder="e.g. AUL/CMP/23/074"
+              placeholder="e.g. 2020/10001"
+              required
+            />
+          </div>
+
+          <div className="input-group lg:col-span-2">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
+              Full Name (Surname, Firstname Middle)
+            </label>
+            <input
+              type="text"
+              className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
+              value={formData.fullName}
+              onChange={(e) =>
+                setFormData({ ...formData, fullName: e.target.value })
+              }
+              placeholder="e.g. Johnson, Michael Samuel"
               required
             />
           </div>
 
           <div className="input-group">
             <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
-              Surname
+              College/Centre
             </label>
-            <input
-              type="text"
-              className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={formData.surname}
-              onChange={(e) =>
-                setFormData({ ...formData, surname: e.target.value })
-              }
-              placeholder="e.g. Johnson"
-              required
-            />
-          </div>
-
-          <div className="input-group">
-            <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
-              First Name
-            </label>
-            <input
-              type="text"
-              className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={formData.firstname}
-              onChange={(e) =>
-                setFormData({ ...formData, firstname: e.target.value })
-              }
-              placeholder="e.g. Michael"
-              required
-            />
-          </div>
-
-          <div className="input-group">
-            <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
-              Middle Name
-            </label>
-            <input
-              type="text"
-              className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={formData.middlename || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, middlename: e.target.value })
-              }
-            />
+            <div className="relative">
+              <select
+                className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all appearance-none"
+                value={formData.collegeId || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    collegeId: parseInt(e.target.value),
+                  })
+                }
+                required
+              >
+                <option value="">Select College</option>
+                {colleges.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-institutional-muted">
+                <FiChevronDown />
+              </div>
+            </div>
           </div>
 
           <div className="input-group">
@@ -184,24 +181,6 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
               <option value="300">300 Level</option>
               <option value="400">400 Level</option>
               <option value="500">500 Level</option>
-            </select>
-          </div>
-
-          <div className="input-group">
-            <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
-              Gender Identification
-            </label>
-            <select
-              className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all appearance-none"
-              value={formData.gender}
-              onChange={(e) =>
-                setFormData({ ...formData, gender: e.target.value })
-              }
-              required
-            >
-              <option value="">Select Gender</option>
-              <option value="MALE">MALE</option>
-              <option value="FEMALE">FEMALE</option>
             </select>
           </div>
 
@@ -229,41 +208,25 @@ export default function StudentForm({ onStudentform }: StudentFormProps) {
             </div>
           </div>
 
-          <div className="input-group">
-            <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
-              Commencement Session
-            </label>
-            <input
-              type="text"
-              className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all"
-              value={formData.startSession}
-              onChange={(e) =>
-                setFormData({ ...formData, startSession: e.target.value })
-              }
-              placeholder="e.g. 2024/2025"
-              required
-            />
-          </div>
-
-          <div className="input-group">
+          <div className="input-group lg:col-span-2">
             <label className="block text-[10px] font-black uppercase tracking-widest text-institutional-muted mb-2">
               Academic Programme
             </label>
             <div className="relative">
               <select
                 className="w-full px-4 py-2.5 bg-page border border-brick/10 rounded-institutional text-sm font-bold text-institutional-primary focus:outline-none focus:ring-2 focus:ring-brick/20 focus:border-brick transition-all appearance-none"
-                value={formData.programId || ""}
+                value={formData.programme || ""}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    programId: parseInt(e.target.value),
+                    programme: e.target.value,
                   })
                 }
                 required
               >
                 <option value="">Select Programme</option>
                 {filteredPrograms.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.id} value={p.name}>
                     {p.name}
                   </option>
                 ))}

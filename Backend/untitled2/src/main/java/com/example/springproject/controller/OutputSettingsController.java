@@ -23,14 +23,19 @@ public class OutputSettingsController {
                       @RequestParam(value = "username", required = false) String usernameParam,
                       @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         String actorUsername = (usernameParam != null) ? usernameParam : actorHeader;
-        policyService.enforceScope(actorUsername, null, null);
-        settingsService.saveSettings(settings);
+        settingsService.saveSettings(settings, actorUsername);
         return "Output settings saved";
     }
 
     @GetMapping("/get")
+    public OutputSettings getLatest(@RequestParam(value = "username", required = false) String usernameParam,
+                                    @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
+        return settingsService.getLatestSettings();
+    }
+
+    @GetMapping("/history")
     public List<OutputSettings> getAll(@RequestParam(value = "username", required = false) String usernameParam,
-                                      @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
+                                       @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorHeader) {
         return settingsService.getAllSettings();
     }
 }

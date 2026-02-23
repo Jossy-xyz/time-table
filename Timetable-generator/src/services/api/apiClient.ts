@@ -38,6 +38,15 @@ export const apiClient = {
       throw new Error(errorData.message || `API Error: ${response.status}`);
     }
 
+    // Handle Blob/Raw responses if requested (e.g. for exports)
+    if ((options as any).responseType === "blob") {
+      return (await response.blob()) as unknown as T;
+    }
+
+    if ((options as any).responseType === "text") {
+      return (await response.text()) as unknown as T;
+    }
+
     // Handle empty responses (like 204 No Content or success messages)
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {

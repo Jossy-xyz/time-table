@@ -25,32 +25,33 @@ public class StudentSemesterRegistrationserviceimp implements StudentSemesterReg
     @Override
     @Transactional
     public StudentSemesterRegistration saveStudentSemesterRegistration(StudentSemesterRegistration registration, String actorUsername) {
-        // FETCH MANAGED STUDENT
+        // DIV-01: Integrity Enforcement - Verify FK inputs
         if (registration.getStudent() == null || registration.getStudent().getId() == null) {
-             throw new IllegalArgumentException("Student ID is required");
+             throw new IllegalArgumentException("DIV-VIOLATION: Student Matric No is mandatory for enrollment");
         }
 
+        // DIV-02: Mandatory Pre-Mutation Check - Fetch Managed Student
         Student student = studentrepository.findById(registration.getStudent().getId())
-                .orElseThrow(() -> new RuntimeException("Student not found with ID: " + registration.getStudent().getId()));
+                .orElseThrow(() -> new RuntimeException("INTEGRITY-ERROR: Student not found with Matric No: " + registration.getStudent().getId()));
         
         registration.setStudent(student);
 
-        // DIV: Scope Verification
+        // DIV-03: PEL Integration - Hierarchy defines scope
         policyService.enforceScope(
             actorUsername, 
-            student.getDepartment().getId(),
-            student.getDepartment().getCentre().getId()
+            student.getDepartment() != null ? student.getDepartment().getId() : null,
+            student.getCollege() != null ? student.getCollege().getId() : null
         );
 
-        // Prevent duplicate enrollment for same session/semester
+        // DIV-04: Business Invariant - Prevent duplicate enrollment
         boolean exists = repository.existsByStudentAndSessionAndSemester(
-            registration.getStudent(),
+            student,
             registration.getSession(),
             registration.getSemester()
         );
 
         if (exists) {
-            throw new RuntimeException("Student is already enrolled for this session and semester.");
+            throw new RuntimeException("BUSINESS-RULE-VIOLATION: Student is already enrolled for this session and semester.");
         }
 
         return repository.save(registration);
@@ -64,20 +65,21 @@ public class StudentSemesterRegistrationserviceimp implements StudentSemesterReg
     @Override
     @Transactional
     public StudentSemesterRegistration updateStudentSemesterRegistration(Long id, StudentSemesterRegistration updated, String actorUsername) {
+        // DIV-01: Fetch Managed Instance
         StudentSemesterRegistration existing = repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Enrollment record not found"));
+            .orElseThrow(() -> new RuntimeException("INTEGRITY-ERROR: Enrollment record " + id + " not found"));
 
-        // DIV: Scope Verification
+        // DIV-02: PEL Integration
         policyService.enforceScope(
             actorUsername, 
-            existing.getStudent().getDepartment().getId(),
-            existing.getStudent().getDepartment().getCentre().getId()
+            existing.getStudent().getDepartment() != null ? existing.getStudent().getDepartment().getId() : null,
+            existing.getStudent().getCollege() != null ? existing.getStudent().getCollege().getId() : null
         );
 
-        existing.setStudent(updated.getStudent());
-        existing.setSession(updated.getSession());
-        existing.setSemester(updated.getSemester());
-        existing.setLevel(updated.getLevel());
+        // DIV-03: Strict Sanitization & Update
+        if (updated.getSession() != null) existing.setSession(updated.getSession());
+        if (updated.getSemester() != null) existing.setSemester(updated.getSemester());
+        if (updated.getLevel() != null) existing.setLevel(updated.getLevel());
         
         return repository.save(existing);
     }
@@ -85,14 +87,15 @@ public class StudentSemesterRegistrationserviceimp implements StudentSemesterReg
     @Override
     @Transactional
     public void deleteStudentSemesterRegistration(Long id, String actorUsername) {
+        // DIV-01: Fetch Managed Instance
         StudentSemesterRegistration existing = repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Enrollment record not found"));
+            .orElseThrow(() -> new RuntimeException("INTEGRITY-ERROR: Enrollment record " + id + " not found"));
 
-        // DIV: Scope Verification
+        // DIV-02: PEL Integration
         policyService.enforceScope(
             actorUsername, 
-            existing.getStudent().getDepartment().getId(),
-            existing.getStudent().getDepartment().getCentre().getId()
+            existing.getStudent().getDepartment() != null ? existing.getStudent().getDepartment().getId() : null,
+            existing.getStudent().getCollege() != null ? existing.getStudent().getCollege().getId() : null
         );
 
         repository.deleteById(id);

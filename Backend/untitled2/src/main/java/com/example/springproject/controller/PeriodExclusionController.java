@@ -74,7 +74,7 @@ public class PeriodExclusionController {
     public ResponseEntity<?> saveExclusions(
         @RequestBody PeriodExclusionRequest request,
         @RequestParam(required = false) Long settingsId,
-        @RequestHeader(value = "X-Actor-Username", defaultValue = "system") String username
+        @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername
     ) {
         GeneralSettings settings = (settingsId != null) ? 
             generalSettingsRepository.findById(settingsId).orElse(null) :
@@ -84,40 +84,14 @@ public class PeriodExclusionController {
             return ResponseEntity.badRequest().body("GeneralSettings not found");
         }
         
-        // Enforce Admin-only access for defining exclusions
-        // Use the username from the request header if avail, or the specific param
-        policyService.enforceAlgorithmAccess(username);
-        
-        try {
-            validator.validate(request, settings);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-        
-        // ENFORCEMENT: Automatically include system-locked periods (e.g. pre-start dates)
-        PeriodMappingResponse mapping = periodCalculationService.calculatePeriodMapping(settings);
-        List<Integer> systemLockedIndices = mapping.getPeriods().stream()
-                .filter(p -> Boolean.TRUE.equals(p.getIsSystemLocked()))
-                .map(com.example.springproject.dto.PeriodMapping::getPeriodIndex)
-                .collect(Collectors.toList());
-
-        // Merge User selections with System Locks (Set handles duplicates)
-        java.util.Set<Integer> mergedExclusions = new java.util.HashSet<>();
-        if (request.getExcludedPeriods() != null) {
-            mergedExclusions.addAll(request.getExcludedPeriods());
-        }
-        mergedExclusions.addAll(systemLockedIndices);
-
-        mergedExclusions.addAll(systemLockedIndices);
-
         PeriodExclusionSnapshot snapshot = new PeriodExclusionSnapshot();
-        snapshot.setGeneralSettings(settings); // Line 111
+        snapshot.setGeneralSettings(settings);
         snapshot.setName(request.getName());
-        snapshot.setExcludedPeriodsList(new java.util.ArrayList<>(mergedExclusions));
-        snapshot.setIsActive(request.getSetAsActive() != null ? request.getSetAsActive() : false);
-        snapshot.setCreatedBy(username);
+        snapshot.setExcludedPeriodsList(request.getExcludedPeriods());
         
-        PeriodExclusionSnapshot saved = periodExclusionService.save(snapshot);
+        boolean setAsActive = (request.getSetAsActive() != null && request.getSetAsActive());
+        
+        PeriodExclusionSnapshot saved = periodExclusionService.save(snapshot, actorUsername, setAsActive);
         
         return ResponseEntity.ok(Collections.singletonMap("id", saved.getId()));
     }
@@ -143,13 +117,10 @@ public class PeriodExclusionController {
     @PutMapping("/exclusions/{id}/activate")
     public ResponseEntity<?> activateSnapshot(
             @PathVariable Long id,
-            @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String username
+            @RequestHeader(value = "X-Actor-Username", defaultValue = "admin") String actorUsername
     ) {
-        // Enforce Admin-only access for activating exclusions
-        policyService.enforceAlgorithmAccess(username);
-        
         try {
-            periodExclusionService.activateSnapshot(id);
+            periodExclusionService.activateSnapshot(id, actorUsername);
             return ResponseEntity.ok(Collections.singletonMap("message", "Snapshot activated"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -161,9 +132,8 @@ public class PeriodExclusionController {
         dto.setId(snapshot.getId());
         dto.setGeneralSettingsId(snapshot.getGeneralSettings().getId());
         dto.setName(snapshot.getName());
-        dto.setDescription(snapshot.getDescription());
         dto.setExcludedPeriods(snapshot.getExcludedPeriodsList());
-        dto.setIsActive(snapshot.getIsActive());
+        dto.setIsActive(snapshot.getIsActive() != null && snapshot.getIsActive() == 1);
         dto.setCreatedBy(snapshot.getCreatedBy());
         dto.setCreatedAt(snapshot.getCreatedAt());
         return dto;

@@ -4,36 +4,36 @@ import jakarta.persistence.*;
 import java.util.Date;
 
 @Entity
-@Table(name = "registration", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"student_id", "course_id", "session"})
-})
+@Table(name = "registration")
 public class Registration {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "regIDMC")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "student_id", nullable = false)
+    @JoinColumn(name = "centreID", nullable = false)
+    private Centre college;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "matricNo", referencedColumnName = "matricNo", nullable = false)
     private Student student;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_id", nullable = false)
+    @JoinColumn(name = "courseCode", referencedColumnName = "code", nullable = false)
     private Course course;
 
-    @Column(nullable = false, length = 20)
+    @Column(name = "ID", nullable = false, columnDefinition = "int UNSIGNED")
+    private Integer internalReferenceId;
+
+    @Column(name = "session", length = 9)
     private String session;
 
-    @Column(nullable = false)
+    @Column(name = "semester", columnDefinition = "tinyint UNSIGNED")
     private Integer semester;
 
-    @Column(name = "created_at", updatable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = new Date();
-    }
+    @Column(name = "level", columnDefinition = "smallint UNSIGNED")
+    private Integer level;
 
     public Long getId() {
         return id;
@@ -41,6 +41,14 @@ public class Registration {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Centre getCollege() {
+        return college;
+    }
+
+    public void setCollege(Centre college) {
+        this.college = college;
     }
 
     public Student getStudent() {
@@ -59,6 +67,14 @@ public class Registration {
         this.course = course;
     }
 
+    public Integer getInternalReferenceId() {
+        return internalReferenceId;
+    }
+
+    public void setInternalReferenceId(Integer internalReferenceId) {
+        this.internalReferenceId = internalReferenceId;
+    }
+
     public String getSession() {
         return session;
     }
@@ -75,11 +91,11 @@ public class Registration {
         this.semester = semester;
     }
 
-    public Date getCreatedAt() {
-        return createdAt;
+    public Integer getLevel() {
+        return level;
     }
 
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
+    public void setLevel(Integer level) {
+        this.level = level;
     }
 }

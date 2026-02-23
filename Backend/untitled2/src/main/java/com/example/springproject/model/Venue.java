@@ -8,44 +8,33 @@ import java.util.Date;
 public class Venue {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "ID")
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "centre_id", nullable = false)
+    @JoinColumn(name = "cenID")
     private Centre centre;
 
-    @Column(name = "venue_code", unique = true, nullable = false, length = 50)
+    @Column(name = "vCode", unique = true, nullable = false, length = 13)
     private String venueCode;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "Name", length = 40)
     private String name;
 
-    @Column(nullable = false)
+    @Column(name = "Capacity", columnDefinition = "smallint UNSIGNED")
     private Integer capacity;
 
-    @Column(columnDefinition = "INT DEFAULT 0")
+    @Column(name = "Type", columnDefinition = "tinyint UNSIGNED")
     private Integer type;
 
-    @Column(columnDefinition = "INT DEFAULT 1")
+    @Column(name = "Preference", nullable = false, columnDefinition = "smallint UNSIGNED DEFAULT 0")
     private Integer preference;
 
-    @Column(length = 255)
-    private String location;
-
-    @Column(name = "actual_capacity", columnDefinition = "INT DEFAULT 0")
+    @Column(name = "actualcap", columnDefinition = "smallint UNSIGNED")
     private Integer actualCapacity;
 
-    @Column(name = "in_use", columnDefinition = "TINYINT(1) DEFAULT 1")
-    private Boolean inUse;
-
-    @Column(name = "created_at", updatable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = new Date();
-    }
+    @Column(name = "InUse", nullable = false, columnDefinition = "tinyint UNSIGNED DEFAULT 1")
+    private Integer inUse;
 
     public Integer getId() {
         return id;
@@ -103,14 +92,6 @@ public class Venue {
         this.preference = preference;
     }
 
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
     public Integer getActualCapacity() {
         return actualCapacity;
     }
@@ -119,19 +100,11 @@ public class Venue {
         this.actualCapacity = actualCapacity;
     }
 
-    public Boolean getInUse() {
+    public Integer getInUse() {
         return inUse;
     }
 
-    public void setInUse(Boolean inUse) {
+    public void setInUse(Integer inUse) {
         this.inUse = inUse;
-    }
-
-    public Date getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
     }
 }

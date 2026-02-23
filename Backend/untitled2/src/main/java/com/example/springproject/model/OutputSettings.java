@@ -10,20 +10,50 @@ public class OutputSettings {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "invigilator_ratio")
+    private Integer invigilatorRatio;
+
+    @Column(name = "invigilator_special_ratio")
+    private Integer invigilatorSpecialRatio;
+
+    @Column(name = "venue_alg")
+    private Integer venueAlg;
+
+    @Column(name = "venue_alg_order")
+    private Integer venueAlgOrder;
+
     @Column(name = "mix_exams")
-    private Boolean mixExams;
+    private Integer mixExams;
 
     @Column(name = "more_space")
-    private Boolean moreSpace;
+    private Integer moreSpace;
 
     @Column(name = "le_fullyinV")
-    private Boolean leFullyInV;
+    private Integer leFullyInV;
 
-    @Column(name = "saveTT_csv")
-    private Boolean saveTtCsv;
+    @Column(name = "use_half_venue")
+    private Integer useHalfVenue;
 
-    @Column(name = "saveTT_pdf")
-    private Boolean saveTtPdf;
+    @Column(name = "select_staff_random")
+    private Integer selectStaffRandom;
+
+    @Column(name = "use_staff_ids")
+    private Integer useStaffIds;
+
+    @Column(name = "update_staff_duty")
+    private Integer updateStaffDuty;
+
+    @Column(name = "skip_week")
+    private Integer skipWeek;
+
+    @Column(name = "gen_sitting_arr")
+    private Integer genSittingArr;
+
+    @Column(name = "save_file")
+    private Integer saveFile;
+
+    @Column(name = "save_to_db")
+    private Integer saveToDb;
 
     @Column(name = "created_at", updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
@@ -34,59 +64,56 @@ public class OutputSettings {
         createdAt = new Date();
     }
 
-    public Integer getId() {
-        return id;
-    }
+    // Getters and Setters
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
-    public Boolean getMixExams() {
-        return mixExams;
-    }
+    public Integer getInvigilatorRatio() { return invigilatorRatio; }
+    public void setInvigilatorRatio(Integer invigilatorRatio) { this.invigilatorRatio = invigilatorRatio; }
 
-    public void setMixExams(Boolean mixExams) {
-        this.mixExams = mixExams;
-    }
+    public Integer getInvigilatorSpecialRatio() { return invigilatorSpecialRatio; }
+    public void setInvigilatorSpecialRatio(Integer invigilatorSpecialRatio) { this.invigilatorSpecialRatio = invigilatorSpecialRatio; }
 
-    public Boolean getMoreSpace() {
-        return moreSpace;
-    }
+    public Integer getVenueAlg() { return venueAlg; }
+    public void setVenueAlg(Integer venueAlg) { this.venueAlg = venueAlg; }
 
-    public void setMoreSpace(Boolean moreSpace) {
-        this.moreSpace = moreSpace;
-    }
+    public Integer getVenueAlgOrder() { return venueAlgOrder; }
+    public void setVenueAlgOrder(Integer venueAlgOrder) { this.venueAlgOrder = venueAlgOrder; }
 
-    public Boolean getLeFullyInV() {
-        return leFullyInV;
-    }
+    public Integer getMixExams() { return mixExams; }
+    public void setMixExams(Integer mixExams) { this.mixExams = mixExams; }
 
-    public void setLeFullyInV(Boolean leFullyInV) {
-        this.leFullyInV = leFullyInV;
-    }
+    public Integer getMoreSpace() { return moreSpace; }
+    public void setMoreSpace(Integer moreSpace) { this.moreSpace = moreSpace; }
 
-    public Boolean getSaveTtCsv() {
-        return saveTtCsv;
-    }
+    public Integer getLeFullyInV() { return leFullyInV; }
+    public void setLeFullyInV(Integer leFullyInV) { this.leFullyInV = leFullyInV; }
 
-    public void setSaveTtCsv(Boolean saveTtCsv) {
-        this.saveTtCsv = saveTtCsv;
-    }
+    public Integer getUseHalfVenue() { return useHalfVenue; }
+    public void setUseHalfVenue(Integer useHalfVenue) { this.useHalfVenue = useHalfVenue; }
 
-    public Boolean getSaveTtPdf() {
-        return saveTtPdf;
-    }
+    public Integer getSelectStaffRandom() { return selectStaffRandom; }
+    public void setSelectStaffRandom(Integer selectStaffRandom) { this.selectStaffRandom = selectStaffRandom; }
 
-    public void setSaveTtPdf(Boolean saveTtPdf) {
-        this.saveTtPdf = saveTtPdf;
-    }
+    public Integer getUseStaffIds() { return useStaffIds; }
+    public void setUseStaffIds(Integer useStaffIds) { this.useStaffIds = useStaffIds; }
 
-    public Date getCreatedAt() {
-        return createdAt;
-    }
+    public Integer getUpdateStaffDuty() { return updateStaffDuty; }
+    public void setUpdateStaffDuty(Integer updateStaffDuty) { this.updateStaffDuty = updateStaffDuty; }
 
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
-    }
+    public Integer getSkipWeek() { return skipWeek; }
+    public void setSkipWeek(Integer skipWeek) { this.skipWeek = skipWeek; }
+
+    public Integer getGenSittingArr() { return genSittingArr; }
+    public void setGenSittingArr(Integer genSittingArr) { this.genSittingArr = genSittingArr; }
+
+    public Integer getSaveFile() { return saveFile; }
+    public void setSaveFile(Integer saveFile) { this.saveFile = saveFile; }
+
+    public Integer getSaveToDb() { return saveToDb; }
+    public void setSaveToDb(Integer saveToDb) { this.saveToDb = saveToDb; }
+
+    public Date getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
 }

@@ -11,6 +11,9 @@ import {
   FiAlertCircle,
   FiInfo,
 } from "react-icons/fi";
+import { studentService } from "../services/api/studentService";
+import { courseService } from "../services/api/courseService";
+import { venueService } from "../services/api/venueService";
 import { StatCard } from "../components/molecules/StatCard";
 import {
   Card,
@@ -51,78 +54,25 @@ const DashboardPage: React.FC = () => {
   });
 
   const fetchDashboardData = useCallback(async () => {
-    const username = user?.username || localStorage.getItem("username");
-
-    // Guard against null, undefined, or string "undefined"
-    if (!username || username === "undefined") {
-      setCounts((prev) => ({
-        ...prev,
-        status: "Not Authenticated",
-        statusOk: false,
-      }));
-      return;
-    }
-
-    const endpoints = [
-      {
-        id: "student",
-        url: `http://localhost:8080/student/get?username=${username}`,
-      },
-      {
-        id: "course",
-        url: `http://localhost:8080/course/get?username=${username}`,
-      },
-      { id: "venue", url: `http://localhost:8080/venue/get` },
-    ];
-
     try {
-      const results = await Promise.all(
-        endpoints.map(async (ep) => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout for aviation-grade responsiveness
-
-          try {
-            const headers: Record<string, string> = {
-              "X-Actor-Username": username,
-            };
-            const res = await fetch(ep.url, {
-              signal: controller.signal,
-              headers,
-            });
-            clearTimeout(timeoutId);
-
-            if (!res.ok) return { id: ep.id, count: 0, ok: false };
-            const data = await res.json();
-            return {
-              id: ep.id,
-              count: Array.isArray(data) ? data.length : 0,
-              ok: true,
-            };
-          } catch (e) {
-            console.warn(`Fetch failure for ${ep.id}:`, e);
-            return { id: ep.id, count: 0, ok: false };
-          }
-        }),
-      );
-
-      const studentData = results.find((r) => r.id === "student");
-      const courseData = results.find((r) => r.id === "course");
-      const venueData = results.find((r) => r.id === "venue");
-
-      const allSystemsOk = results.length > 0 && results.every((r) => r.ok);
+      const [students, courses, venues] = await Promise.all([
+        studentService.getAll(),
+        courseService.getAll(),
+        venueService.getAll(),
+      ]);
 
       setCounts({
-        students: studentData?.count.toLocaleString() || "0",
-        courses: courseData?.count.toLocaleString() || "0",
-        venues: venueData?.count.toLocaleString() || "0",
-        status: allSystemsOk ? "Active" : "Offline",
-        statusOk: allSystemsOk,
+        students: students.length.toLocaleString(),
+        courses: courses.length.toLocaleString(),
+        venues: venues.length.toLocaleString(),
+        status: "Active",
+        statusOk: true,
       });
     } catch (err) {
       console.error("Dashboard full sync failure:", err);
       setCounts((prev) => ({ ...prev, status: "Offline", statusOk: false }));
     }
-  }, [user?.username]);
+  }, []);
 
   React.useEffect(() => {
     // User state monitoring
